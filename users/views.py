@@ -2,14 +2,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.urls import reverse_lazy
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.urls import reverse_lazy, reverse
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, FormView, View
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 from .models import Person, ExternalIdentity, AttributeChange
 from datasources.models import DataSource
-from users.profile_integration import AttributeSource, ProfileFieldMapping, ProfileAttributeChange
+from users.profile_integration import AttributeSource, ProfileFieldMapping, ProfileAttributeChange, AttributeDisplayConfig
+from users.utils import coalesce_identifiers
+
+from django.http import JsonResponse
+from django.db import transaction
+
 
 # Person views
 class PersonListView(LoginRequiredMixin, ListView):
@@ -27,67 +32,105 @@ class PersonListView(LoginRequiredMixin, ListView):
         # Handle search
         search_query = self.request.GET.get('search', '')
         if search_query:
+            # Basic search on Person model fields
+            basic_search = Q(first_name__icontains=search_query) | \
+                        Q(last_name__icontains=search_query) | \
+                        Q(display_name__icontains=search_query) | \
+                        Q(email__icontains=search_query) | \
+                        Q(secondary_email__icontains=search_query) | \
+                        Q(unique_id__icontains=search_query)
+            
+            # Search in JSON attributes field
+            # This works for PostgreSQL, but may need to be adjusted for other databases
+            json_search = Q(attributes__icontains=search_query)
+            
+            # Combine searches
+            queryset = queryset.filter(basic_search | json_search)
+            
+            # Also search in attribute sources
+            # First, find all AttributeSource records that contain the search term
+            from users.profile_integration import AttributeSource
+            matching_sources = AttributeSource.objects.filter(
+                Q(attribute_value__icontains=search_query) & 
+                Q(is_current=True)
+            ).values_list('person_id', flat=True).distinct()
+            
+            # Then include persons with matching attribute sources
             queryset = queryset.filter(
-                Q(first_name__icontains=search_query) | 
-                Q(last_name__icontains=search_query) | 
-                Q(display_name__icontains=search_query) | 
-                Q(email__icontains=search_query) | 
-                Q(unique_id__icontains=search_query)
-            )
-        
-        # Handle sorting
-        sort_by = self.request.GET.get('sort', 'display_name')
-        if sort_by.startswith('-'):
-            direction = '-'
-            field = sort_by[1:]
-        else:
-            direction = ''
-            field = sort_by
-        
-        # Apply sorting (add more cases as needed)
-        if field == 'display_name':
-            queryset = queryset.order_by(f'{direction}display_name', f'{direction}last_name', f'{direction}first_name')
-        else:
-            queryset = queryset.order_by(sort_by)
-        
-        return queryset
+                Q(id__in=matching_sources) | basic_search | json_search
+            ).distinct()
+    
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Add identifiers to each person in the list
+        # Get all person IDs from the current queryset
+        person_ids = [person.id for person in context['persons']]
+        
+        # Query attribute counts in a single database hit
+        from django.db.models import Count
+        from users.profile_integration import AttributeSource
+        
+        # Get attribute counts
+        attribute_counts = AttributeSource.objects.filter(
+            person_id__in=person_ids,
+            is_current=True
+        ).values('person_id').annotate(
+            count=Count('attribute_name', distinct=True)
+        ).values_list('person_id', 'count')
+        
+        # Get datasource counts
+        datasource_counts = AttributeSource.objects.filter(
+            person_id__in=person_ids,
+            is_current=True
+        ).values('person_id').annotate(
+            count=Count('datasource', distinct=True)
+        ).values_list('person_id', 'count')
+        
+        # Convert to dictionaries for easy lookup
+        attribute_count_dict = dict(attribute_counts)
+        datasource_count_dict = dict(datasource_counts)
+        
+        # Add identifiers and counts to each person in the list
         from users.models import get_identifiers
-        for person in context['persons']:
+        from users.utils import coalesce_identifiers
+        
+        # Get the sort parameter
+        sort_by = self.request.GET.get('sort', 'display_name')
+        
+        # Prepare a list to hold the persons if we need to sort them manually
+        persons_list = list(context['persons'])
+        
+        for person in persons_list:
             # Get raw identifiers
             identifiers = get_identifiers(person)
             person.identifiers = identifiers
             
-            # Coalesce identifiers
-            person.coalesced_identifiers = {}
-            if identifiers:
-                for source_name, source_ids in identifiers.items():
-                    for attr_name, value in source_ids.items():
-                        if attr_name not in person.coalesced_identifiers:
-                            person.coalesced_identifiers[attr_name] = []
-                        
-                        # Check if this exact value already exists
-                        duplicate = False
-                        for existing in person.coalesced_identifiers[attr_name]:
-                            if existing['value'] == value:
-                                # Just add this source to the existing value's sources
-                                existing['sources'].append(source_name)
-                                duplicate = True
-                                break
-                        
-                        # If not a duplicate, add new entry
-                        if not duplicate:
-                            person.coalesced_identifiers[attr_name].append({
-                                'value': value,
-                                'sources': [source_name]
-                            })
+            # Coalesce identifiers for display
+            person.coalesced_identifiers = coalesce_identifiers(identifiers)
+            
+            # Add attribute and datasource counts
+            person.attribute_count = attribute_count_dict.get(person.id, 0)
+            person.datasource_count = datasource_count_dict.get(person.id, 0)
+        
+        # Handle sorting for calculated fields
+        if sort_by == 'attribute_count':
+            persons_list.sort(key=lambda p: p.attribute_count)
+        elif sort_by == '-attribute_count':
+            persons_list.sort(key=lambda p: p.attribute_count, reverse=True)
+        elif sort_by == 'datasource_count':
+            persons_list.sort(key=lambda p: p.datasource_count)
+        elif sort_by == '-datasource_count':
+            persons_list.sort(key=lambda p: p.datasource_count, reverse=True)
+        
+        # Replace the paginated persons with our sorted list if we did manual sorting
+        if sort_by in ['attribute_count', '-attribute_count', 'datasource_count', '-datasource_count']:
+            # This is a bit tricky since we're dealing with a paginated queryset
+            # We'll replace the object_list in the paginator with our sorted list
+            context['persons'].object_list = persons_list
         
         context['search_query'] = self.request.GET.get('search', '')
-        context['sort_by'] = self.request.GET.get('sort', 'display_name')
+        context['sort_by'] = sort_by
         context['total_count'] = Person.objects.count()
         return context
 
@@ -110,38 +153,8 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         # Store original format for backwards compatibility
         context['identifiers'] = raw_identifiers
         
-        # Restructure identifiers to be grouped by attribute name first
-        # This is the key change - we flip the structure from source->attribute to attribute->values
-        coalesced_identifiers = {}
-        
-        if raw_identifiers:
-            # First, collect all values for each attribute across all sources
-            for source, attributes in raw_identifiers.items():
-                for attr_name, value in attributes.items():
-                    if attr_name not in coalesced_identifiers:
-                        coalesced_identifiers[attr_name] = {}
-                    
-                    # Use the value as a key to group by unique values
-                    if value not in coalesced_identifiers[attr_name]:
-                        coalesced_identifiers[attr_name][value] = []
-                    
-                    # Add this source to the list of sources for this value
-                    coalesced_identifiers[attr_name][value].append(source)
-            
-            # Convert the nested dict to the final format expected by the template
-            for attr_name in coalesced_identifiers:
-                # Convert dict of value->sources to list of {value, sources} objects
-                value_list = []
-                for value, sources in coalesced_identifiers[attr_name].items():
-                    value_list.append({
-                        'value': value,
-                        'sources': sources
-                    })
-                coalesced_identifiers[attr_name] = value_list
-        
-        context['coalesced_identifiers'] = coalesced_identifiers
-        
-        # Rest of the function (existing code) continues here...
+        # Use the new coalescing function
+        context['coalesced_identifiers'] = coalesce_identifiers(raw_identifiers)
         
         # Get selected datasource from query parameter (if any)
         selected_datasource_id = self.request.GET.get('datasource', None)
@@ -334,3 +347,294 @@ class AttributeChangeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['person'] = self.person
         return context
+
+class AttributeConfigListView(LoginRequiredMixin, ListView):
+    """
+    List view for attribute display configurations by data source
+    """
+    model = AttributeDisplayConfig
+    template_name = 'users/attribute_config_list.html'
+    context_object_name = 'configs'
+    
+    def get_queryset(self):
+        # Get the data source from the URL
+        datasource_id = self.kwargs.get('datasource_id')
+        return AttributeDisplayConfig.objects.filter(datasource_id=datasource_id).order_by('category', 'display_order')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['datasource'] = get_object_or_404(DataSource, pk=self.kwargs.get('datasource_id'))
+        
+        # Group configs by category
+        grouped_configs = {}
+        for config in context['configs']:
+            if config.category not in grouped_configs:
+                grouped_configs[config.category] = []
+            grouped_configs[config.category].append(config)
+        
+        context['grouped_configs'] = grouped_configs
+        
+        # Get all known attributes for this data source
+        known_attributes = set(config.attribute_name for config in context['configs'])
+        
+        # Find attributes from mappings that don't have a display config yet
+        mappings = ProfileFieldMapping.objects.filter(datasource_id=self.kwargs.get('datasource_id'))
+        missing_attributes = set()
+        for mapping in mappings:
+            if mapping.profile_attribute not in known_attributes:
+                missing_attributes.add(mapping.profile_attribute)
+        
+        context['missing_attributes'] = sorted(list(missing_attributes))
+        context['has_missing_attributes'] = len(missing_attributes) > 0
+        
+        return context
+
+class AttributeConfigCreateView(LoginRequiredMixin, CreateView):
+    """
+    Create view for attribute display configuration
+    """
+    model = AttributeDisplayConfig
+    template_name = 'users/attribute_config_form.html'
+    fields = ['attribute_name', 'display_name', 'category', 'display_order', 'is_primary', 'is_visible']
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['datasource'] = get_object_or_404(DataSource, pk=self.kwargs.get('datasource_id'))
+        return context
+    
+    def form_valid(self, form):
+        form.instance.datasource = get_object_or_404(DataSource, pk=self.kwargs.get('datasource_id'))
+        messages.success(self.request, _('Attribute configuration created successfully.'))
+        return super().form_valid(form)
+    
+    def get_success_url(self):
+        return reverse_lazy('users:attribute_config_list', kwargs={'datasource_id': self.kwargs.get('datasource_id')})
+
+class AttributeConfigUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Update view for attribute display configuration
+    """
+    model = AttributeDisplayConfig
+    template_name = 'users/attribute_config_form.html'
+    fields = ['attribute_name', 'display_name', 'category', 'display_order', 'is_primary', 'is_visible']
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['datasource'] = self.object.datasource
+        return context
+    
+    def get_success_url(self):
+        return reverse_lazy('users:attribute_config_list', kwargs={'datasource_id': self.object.datasource.id})
+
+class AttributeConfigDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Delete view for attribute display configuration
+    """
+    model = AttributeDisplayConfig
+    template_name = 'users/attribute_config_confirm_delete.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['datasource'] = self.object.datasource
+        return context
+    
+    def get_success_url(self):
+        return reverse_lazy('users:attribute_config_list', kwargs={'datasource_id': self.object.datasource.id})
+
+class AttributeConfigBulkCreateView(LoginRequiredMixin, FormView):
+    """
+    Bulk create view for missing attribute configurations
+    """
+    template_name = 'users/attribute_config_bulk_create.html'
+    
+    def get_form(self, form_class=None):
+        from django import forms
+        
+        class BulkCreateForm(forms.Form):
+            attributes = forms.MultipleChoiceField(
+                choices=[], 
+                widget=forms.CheckboxSelectMultiple,
+                required=False
+            )
+            
+            def __init__(self, *args, missing_attributes=None, **kwargs):
+                super().__init__(*args, **kwargs)
+                if missing_attributes:
+                    self.fields['attributes'].choices = [(attr, attr) for attr in missing_attributes]
+        
+        # Get missing attributes
+        datasource_id = self.kwargs.get('datasource_id')
+        known_attributes = set(config.attribute_name for config in 
+                           AttributeDisplayConfig.objects.filter(datasource_id=datasource_id))
+        
+        mappings = ProfileFieldMapping.objects.filter(datasource_id=datasource_id)
+        missing_attributes = []
+        for mapping in mappings:
+            if mapping.profile_attribute not in known_attributes:
+                missing_attributes.append(mapping.profile_attribute)
+        
+        # Create and return the form
+        return BulkCreateForm(self.request.POST or None, missing_attributes=sorted(missing_attributes))
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['datasource'] = get_object_or_404(DataSource, pk=self.kwargs.get('datasource_id'))
+        return context
+    
+    def form_valid(self, form):
+        datasource_id = self.kwargs.get('datasource_id')
+        datasource = get_object_or_404(DataSource, pk=datasource_id)
+        
+        # Process the checked attributes
+        selected_attributes = form.cleaned_data.get('attributes', [])
+        
+        for i, attr_name in enumerate(selected_attributes):
+            # Make an educated guess about the category based on attribute name
+            category = self._guess_category(attr_name)
+            
+            AttributeDisplayConfig.objects.create(
+                datasource=datasource,
+                attribute_name=attr_name,
+                # Use attribute name as display name by default
+                display_name=attr_name.replace('_', ' ').title(),
+                category=category,
+                # Order by selection order
+                display_order=i * 10,
+                is_primary=False,
+                is_visible=True
+            )
+        
+        messages.success(self.request, _(f'Created {len(selected_attributes)} attribute configurations.'))
+        return redirect('users:attribute_config_list', datasource_id=datasource_id)
+    
+    def _guess_category(self, attribute_name):
+        """Make an educated guess about which category an attribute belongs to"""
+        attribute_name = attribute_name.lower()
+        
+        # Identity attributes
+        if any(term in attribute_name for term in ['id', 'uuid', 'guid', 'unique']):
+            return 'identity'
+        
+        # Contact information
+        if any(term in attribute_name for term in ['email', 'phone', 'address', 'contact']):
+            return 'contact'
+        
+        # Personal information
+        if any(term in attribute_name for term in ['name', 'first', 'last', 'birth', 'gender']):
+            return 'personal'
+        
+        # Employment information
+        if any(term in attribute_name for term in ['job', 'title', 'department', 'manager', 'hire', 'employee']):
+            return 'employment'
+        
+        # System information
+        if any(term in attribute_name for term in ['status', 'created', 'modified', 'updated', 'active']):
+            return 'system'
+        
+        # Default
+        return 'general'
+
+class AttributeConfigReorderView(LoginRequiredMixin, View):
+    """
+    AJAX view for reordering attributes via drag and drop
+    """
+    def post(self, request, datasource_id):
+        try:
+            # Verify the data source exists
+            datasource = get_object_or_404(DataSource, pk=datasource_id)
+            
+            # Get the ordering data from the request
+            data = request.POST.get('order')
+            if not data:
+                return JsonResponse({'status': 'error', 'message': 'No ordering data provided'})
+            
+            import json
+            order_data = json.loads(data)
+            
+            # Update the ordering in a transaction
+            with transaction.atomic():
+                for category, items in order_data.items():
+                    for i, item_id in enumerate(items):
+                        try:
+                            # Update the display order
+                            config = AttributeDisplayConfig.objects.get(id=item_id, datasource=datasource)
+                            config.display_order = i
+                            config.category = category  # Update category in case item was moved between categories
+                            config.save(update_fields=['display_order', 'category'])
+                        except AttributeDisplayConfig.DoesNotExist:
+                            continue
+            
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+class CategoryManagementView(LoginRequiredMixin, View):
+    """
+    View for managing categories
+    """
+    template_name = 'users/category_management.html'
+    
+    def get(self, request, datasource_id):
+        datasource = get_object_or_404(DataSource, pk=datasource_id)
+        
+        # Get all unique categories for this data source
+        categories = AttributeDisplayConfig.objects.filter(
+            datasource=datasource
+        ).values_list('category', flat=True).distinct().order_by('category')
+        
+        context = {
+            'datasource': datasource,
+            'categories': categories
+        }
+        
+        return render(request, self.template_name, context)
+    
+    def post(self, request, datasource_id):
+        datasource = get_object_or_404(DataSource, pk=datasource_id)
+        
+        action = request.POST.get('action')
+        
+        if action == 'rename':
+            old_name = request.POST.get('old_name')
+            new_name = request.POST.get('new_name')
+            
+            if old_name and new_name:
+                # Update all configs with this category
+                count = AttributeDisplayConfig.objects.filter(
+                    datasource=datasource,
+                    category=old_name
+                ).update(category=new_name)
+                
+                messages.success(request, _(f'Renamed category "{old_name}" to "{new_name}" (affected {count} attributes).'))
+            else:
+                messages.error(request, _('Both old and new category names are required.'))
+        
+        elif action == 'delete':
+            category = request.POST.get('category')
+            new_category = request.POST.get('new_category', 'general')
+            
+            if category:
+                # Move attributes to the new category
+                count = AttributeDisplayConfig.objects.filter(
+                    datasource=datasource,
+                    category=category
+                ).update(category=new_category)
+                
+                messages.success(request, _(f'Deleted category "{category}" and moved {count} attributes to "{new_category}".'))
+            else:
+                messages.error(request, _('Category name is required.'))
+        
+        elif action == 'create':
+            new_category = request.POST.get('new_category')
+            
+            if new_category:
+                # Nothing to do here since categories are created implicitly
+                # when assigning them to attributes
+                messages.success(request, _(f'Created new category "{new_category}".'))
+            else:
+                messages.error(request, _('New category name is required.'))
+        
+        else:
+            messages.error(request, _('Invalid action.'))
+        
+        return redirect('users:category_management', datasource_id=datasource_id)

@@ -238,3 +238,42 @@ def handle_datasource_deletion(sender, instance, **kwargs):
         logger.error(f"Error during data source deletion cleanup: {str(e)}")
         # Don't re-raise the exception - we want the data source to be deleted
         # even if some cleanup fails
+
+class AttributeDisplayConfig(models.Model):
+    """
+    Configuration for how attributes from a data source should be displayed in user profiles.
+    """
+    datasource = models.ForeignKey(
+        DataSource,
+        on_delete=models.CASCADE,
+        related_name='attribute_display_configs'
+    )
+    attribute_name = models.CharField(_('Attribute Name'), max_length=100)
+    display_name = models.CharField(_('Display Name'), max_length=100, blank=True,
+                                  help_text=_('Custom label to show in the UI'))
+    category = models.CharField(_('Category'), max_length=50, default='general',
+                              help_text=_('Grouping for related attributes'))
+    display_order = models.PositiveIntegerField(_('Display Order'), default=999,
+                                              help_text=_('Lower numbers appear first'))
+    is_primary = models.BooleanField(_('Primary Attribute'), default=False,
+                                   help_text=_('Show in profile summary'))
+    is_visible = models.BooleanField(_('Visible'), default=True,
+                                   help_text=_('Show in profile view'))
+    
+    class Meta:
+        verbose_name = _('Attribute Display Configuration')
+        verbose_name_plural = _('Attribute Display Configurations')
+        unique_together = ('datasource', 'attribute_name')
+        ordering = ['datasource', 'category', 'display_order', 'attribute_name']
+    
+    def __str__(self):
+        return f"{self.datasource.name}: {self.attribute_name}"
+
+    def get_formatted_display_name(self):
+        """Return the display name or a formatted version of the attribute name"""
+        if self.display_name:
+            return self.display_name
+        return self.attribute_name.replace('_', ' ').title()
+
+
+

@@ -1,0 +1,130 @@
+{# templates/users/attribute_config_bulk_create.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - Bulk Create Attribute Configurations{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Bulk Create Attribute Configurations
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+            Select attributes to add to the configuration.
+        </p>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'users:attribute_config_list' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Attributes
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            <div>
+                <div class="pb-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Missing Attributes</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        These attributes are present in field mappings but don't have display configurations yet.
+                        Select the ones you want to add.
+                    </p>
+                </div>
+                
+                <div class="mt-6">
+                    {% if form.attributes %}
+                    <fieldset>
+                        <legend class="sr-only">Attributes</legend>
+                        <div class="space-y-4 max-h-96 overflow-y-auto px-2">
+                            {% for choice in form.attributes %}
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ choice.tag }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ choice.id_for_label }}" class="font-medium text-gray-700">
+                                        {{ choice.choice_label }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+                    
+                    {% if form.attributes.errors %}
+                    <p class="mt-2 text-sm text-red-600">
+                        {{ form.attributes.errors|join:", " }}
+                    </p>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-sm text-gray-500">No missing attributes found.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'users:attribute_config_list' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Add Selected Attributes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Style the checkboxes
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.classList.add('focus:ring-blue-500', 'h-4', 'w-4', 'text-blue-600', 'border-gray-300', 'rounded');
+        });
+        
+        // Quick selection buttons
+        const form = document.querySelector('form');
+        const selectAllButton = document.createElement('button');
+        selectAllButton.type = 'button';
+        selectAllButton.className = 'mr-2 inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        selectAllButton.textContent = 'Select All';
+        
+        const deselectAllButton = document.createElement('button');
+        deselectAllButton.type = 'button';
+        deselectAllButton.className = 'inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+        deselectAllButton.textContent = 'Deselect All';
+        
+        const selectionButtons = document.createElement('div');
+        selectionButtons.className = 'mb-4';
+        selectionButtons.appendChild(selectAllButton);
+        selectionButtons.appendChild(deselectAllButton);
+        
+        const fieldset = document.querySelector('fieldset');
+        if (fieldset) {
+            fieldset.parentNode.insertBefore(selectionButtons, fieldset);
+            
+            // Add event listeners
+            selectAllButton.addEventListener('click', function() {
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.checked = true;
+                });
+            });
+            
+            deselectAllButton.addEventListener('click', function() {
+                checkboxes.forEach(function(checkbox) {
+                    checkbox.checked = false;
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

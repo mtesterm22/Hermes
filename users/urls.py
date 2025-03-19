@@ -33,4 +33,13 @@ urlpatterns = [
     path('profiles/<int:pk>/history/', profile_views.AttributeHistoryView.as_view(), name='attribute_history'),
     re_path(r'profiles/(?P<pk>[0-9]+)/history/(?P<attribute_name>[\w\-\.]+)/', 
             profile_views.AttributeHistoryView.as_view(), name='attribute_history_named'),
+
+    # Attribute display configuration
+    path('datasources/<int:datasource_id>/attributes/', views.AttributeConfigListView.as_view(), name='attribute_config_list'),
+    path('datasources/<int:datasource_id>/attributes/create/', views.AttributeConfigCreateView.as_view(), name='attribute_config_create'),
+    path('datasources/<int:datasource_id>/attributes/bulk-create/', views.AttributeConfigBulkCreateView.as_view(), name='attribute_config_bulk_create'),
+    path('datasources/<int:datasource_id>/attributes/reorder/', views.AttributeConfigReorderView.as_view(), name='attribute_config_reorder'),
+    path('datasources/<int:datasource_id>/categories/', views.CategoryManagementView.as_view(), name='category_management'),
+    path('attributes/<int:pk>/update/', views.AttributeConfigUpdateView.as_view(), name='attribute_config_update'),
+    path('attributes/<int:pk>/delete/', views.AttributeConfigDeleteView.as_view(), name='attribute_config_delete'),
 ]

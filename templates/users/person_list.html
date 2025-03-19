@@ -27,7 +27,7 @@
                     <div class="relative rounded-md shadow-sm">
                         <input type="text" name="search" id="search" 
                                class="focus:ring-blue-500 focus:border-blue-500 block w-full pr-10 sm:text-sm border-gray-300 rounded-md"
-                               placeholder="Search profiles..." value="{{ search_query }}">
+                               placeholder="Search profiles by name, email, ID, or any attribute..." value="{{ search_query }}">
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
@@ -43,7 +43,19 @@
                     Clear
                 </a>
                 {% endif %}
+                
+                <!-- Add sort parameter if present to maintain sort order when clearing search -->
+                {% if sort_by and sort_by != 'display_name' %}
+                <input type="hidden" name="sort" value="{{ sort_by }}">
+                {% endif %}
             </div>
+            
+            <!-- Display search results count when searching -->
+            {% if search_query %}
+            <div class="mt-2 text-sm text-gray-600">
+                Found {{ page_obj.paginator.count }} result{{ page_obj.paginator.count|pluralize }} for "{{ search_query }}"
+            </div>
+            {% endif %}
         </form>
     </div>
 </div>
@@ -109,21 +121,37 @@
                             {% endif %}
                         </a>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {% if person.identifiers %}
-                            {% for source, source_ids in person.identifiers.items %}
-                                {% for attr, value in source_ids.items %}
-                                    <div class="mb-1">
-                                        <span class="text-xs text-gray-500">{{ attr }}:</span> 
-                                        <span class="font-medium">{{ value }}</span>
-                                        <span class="ml-1 text-xs text-gray-400">({{ source }})</span>
-                                    </div>
-                                {% endfor %}
-                            {% endfor %}
-                        {% else %}
-                            <span class="text-gray-400">{{ person.unique_id|default:person.id }}</span>
-                        {% endif %}
-                    </td>
+                    {# Update the ID column in templates/users/person_list.html #}
+
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+    {% if person.coalesced_identifiers %}
+        {% for attr_name, entries in person.coalesced_identifiers.items %}
+            {% for entry in entries %}
+                <div class="mb-1">
+                    <span class="text-xs text-gray-500">{{ attr_name }}:</span> 
+                    <span class="font-medium">{{ entry.value }}</span>
+                    {% if entry.source_names|length > 1 %}
+                        <span class="ml-1 text-xs text-gray-400">({{ entry.source_names|length }} sources)</span>
+                    {% else %}
+                        <span class="ml-1 text-xs text-gray-400">({{ entry.source_names.0 }})</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    {% elif person.identifiers %}
+        {% for source, source_ids in person.identifiers.items %}
+            {% for attr, value in source_ids.items %}
+                <div class="mb-1">
+                    <span class="text-xs text-gray-500">{{ attr }}:</span> 
+                    <span class="font-medium">{{ value }}</span>
+                    <span class="ml-1 text-xs text-gray-400">({{ source }})</span>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    {% else %}
+        <span class="text-gray-400">{{ person.unique_id|default:person.id }}</span>
+    {% endif %}
+</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {{ person.attribute_count }}
                     </td>

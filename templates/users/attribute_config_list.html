@@ -1,0 +1,218 @@
+{# templates/users/attribute_config_list.html - Fix for the Save Order button #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - Attribute Configuration{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }} - Attribute Configuration
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+            Configure how attributes from this data source are displayed in user profiles.
+        </p>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+        <a href="{% url 'users:category_management' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Manage Categories
+        </a>
+        <a href="{% url 'users:attribute_config_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Add Attribute
+        </a>
+        {% if has_missing_attributes %}
+        <a href="{% url 'users:attribute_config_bulk_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Add Missing Attributes ({{ missing_attributes|length }})
+        </a>
+        {% endif %}
+        <a href="{% if datasource.type == 'csv' %}{% url 'datasources:csv_detail' datasource.id %}{% else %}{% url 'datasources:detail' datasource.id %}{% endif %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-6">
+    {% if grouped_configs %}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Attribute Configuration</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                    Drag and drop to reorder attributes. Click on an attribute to edit its configuration.
+                </p>
+            </div>
+            <div>
+                <button type="button" id="save-order" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" disabled>
+                    Save Order
+                </button>
+            </div>
+        </div>
+        
+        <div class="border-t border-gray-200 pb-4" id="attribute-config-container">
+            <!-- Add a hidden form with CSRF token that will be used by the save button -->
+            <form id="order-form" style="display: none;">
+                {% csrf_token %}
+            </form>
+            
+            {% for category, configs in grouped_configs.items %}
+            <div class="category-section mb-6" data-category="{{ category }}">
+                <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                    <h4 class="text-md font-medium text-gray-800">{{ category }}</h4>
+                </div>
+                <div class="attribute-list px-2 py-2" data-category="{{ category }}">
+                    {% for config in configs %}
+                    <div class="attribute-item bg-white border rounded-md mb-2 p-3 flex items-center cursor-move" data-id="{{ config.id }}">
+                        <div class="flex-shrink-0 mr-3 text-gray-400 cursor-move">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center">
+                                <div class="font-medium text-gray-900">{{ config.get_formatted_display_name }}</div>
+                                {% if config.is_primary %}
+                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Primary
+                                </span>
+                                {% endif %}
+                                {% if not config.is_visible %}
+                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    Hidden
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500">{{ config.attribute_name }}</div>
+                        </div>
+                        <div class="flex-shrink-0 ml-2">
+                            <a href="{% url 'users:attribute_config_update' config.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                            <a href="{% url 'users:attribute_config_delete' config.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No attribute configurations</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by adding your first attribute configuration.</p>
+            <div class="mt-6 flex justify-center">
+                <a href="{% url 'users:attribute_config_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Attribute Configuration
+                </a>
+                {% if has_missing_attributes %}
+                <a href="{% url 'users:attribute_config_bulk_create' datasource.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Add Missing Attributes ({{ missing_attributes|length }})
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Track if we have unsaved changes
+    let hasChanges = false;
+    const saveButton = document.getElementById('save-order');
+    
+    // Set up sortable for each attribute list
+    const attributeLists = document.querySelectorAll('.attribute-list');
+    const sortables = [];
+    
+    attributeLists.forEach(function(el) {
+      const sortable = new Sortable(el, {
+        group: 'attributes',  // Allow dragging between categories
+        animation: 150,
+        ghostClass: 'bg-blue-100',
+        handle: '.attribute-item',
+        onEnd: function(evt) {
+          // Mark that we have changes to save
+          hasChanges = true;
+          saveButton.disabled = false;
+        }
+      });
+      
+      sortables.push(sortable);
+    });
+    
+    // Save button click handler
+    saveButton.addEventListener('click', function() {
+      // Show loading state
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+      
+      // Collect the order data
+      const orderData = {};
+      
+      attributeLists.forEach(function(list) {
+        const category = list.dataset.category;
+        const items = Array.from(list.querySelectorAll('.attribute-item')).map(item => item.dataset.id);
+        orderData[category] = items;
+      });
+      
+      // Get the CSRF token from our hidden form
+      const csrfToken = document.querySelector('#order-form [name=csrfmiddlewaretoken]').value;
+      
+      fetch('{% url "users:attribute_config_reorder" datasource.id %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken
+        },
+        body: 'order=' + encodeURIComponent(JSON.stringify(orderData))
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.status === 'success') {
+          // Show success message
+          saveButton.textContent = 'Saved!';
+          setTimeout(() => {
+            saveButton.textContent = 'Save Order';
+            saveButton.disabled = true;
+          }, 2000);
+          
+          // Reset changes flag
+          hasChanges = false;
+        } else {
+          // Show error message
+          saveButton.textContent = 'Error - Try Again';
+          saveButton.disabled = false;
+          alert('Error saving attribute order: ' + data.message);
+        }
+      })
+      .catch(error => {
+        saveButton.textContent = 'Error - Try Again';
+        saveButton.disabled = false;
+        alert('Error saving attribute order: ' + error);
+      });
+    });
+    
+    // Warn when navigating away with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+      if (hasChanges) {
+        // Standard way of showing a confirmation dialog
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    });
+  });
+</script>
+{% endblock %}

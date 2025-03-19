@@ -1,0 +1,197 @@
+{# templates/users/attribute_config_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - {% if object %}Edit{% else %}Create{% endif %} Attribute Configuration{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if object %}Edit{% else %}Create{% endif %} Attribute Configuration
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+            Configure how this attribute is displayed in user profiles.
+        </p>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'users:attribute_config_list' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Attributes
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Attribute Name -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.attribute_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Attribute Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.attribute_name }}
+                            </div>
+                            {% if form.attribute_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.attribute_name.errors|join:", " }}
+                            </p>
+                            {% else %}
+                            <p class="mt-2 text-sm text-gray-500">
+                                The internal name of the attribute as it appears in the data source.
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Display Name -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.display_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Display Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.display_name }}
+                            </div>
+                            {% if form.display_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.display_name.errors|join:", " }}
+                            </p>
+                            {% else %}
+                            <p class="mt-2 text-sm text-gray-500">
+                                A user-friendly name to display in the UI. Leave blank to use a formatted version of the attribute name.
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Category -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.category.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Category
+                            </label>
+                            <div class="mt-1">
+                                {{ form.category }}
+                            </div>
+                            {% if form.category.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.category.errors|join:", " }}
+                            </p>
+                            {% else %}
+                            <p class="mt-2 text-sm text-gray-500">
+                                The category to group this attribute under in the UI.
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Display Order -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.display_order.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Display Order
+                            </label>
+                            <div class="mt-1">
+                                {{ form.display_order }}
+                            </div>
+                            {% if form.display_order.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.display_order.errors|join:", " }}
+                            </p>
+                            {% else %}
+                            <p class="mt-2 text-sm text-gray-500">
+                                The order in which this attribute appears (lower numbers appear first).
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Primary -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_primary }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_primary.id_for_label }}" class="font-medium text-gray-700">
+                                        Primary Attribute
+                                    </label>
+                                    <p class="text-gray-500">
+                                        Include this attribute in the profile summary section at the top of the profile page.
+                                    </p>
+                                </div>
+                            </div>
+                            {% if form.is_primary.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_primary.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Visible -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_visible }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_visible.id_for_label }}" class="font-medium text-gray-700">
+                                        Visible
+                                    </label>
+                                    <p class="text-gray-500">
+                                        Show this attribute in the user profile. When disabled, the attribute is hidden.
+                                    </p>
+                                </div>
+                            </div>
+                            {% if form.is_visible.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_visible.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'users:attribute_config_list' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if object %}Save{% else %}Create{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Style the form fields
+        const attributeNameField = document.querySelector('#{{ form.attribute_name.id_for_label }}');
+        const displayNameField = document.querySelector('#{{ form.display_name.id_for_label }}');
+        const categoryField = document.querySelector('#{{ form.category.id_for_label }}');
+        const displayOrderField = document.querySelector('#{{ form.display_order.id_for_label }}');
+        const isPrimaryCheckbox = document.querySelector('#{{ form.is_primary.id_for_label }}');
+        const isVisibleCheckbox = document.querySelector('#{{ form.is_visible.id_for_label }}');
+        
+        // Apply Tailwind classes to all inputs
+        [attributeNameField, displayNameField, categoryField, displayOrderField].forEach(function(field) {
+            if (field) {
+                field.classList.add('focus:ring-blue-500', 'focus:border-blue-500', 'block', 'w-full', 'shadow-sm', 'sm:text-sm', 'border-gray-300', 'rounded-md');
+            }
+        });
+        
+        // Apply checkbox classes
+        [isPrimaryCheckbox, isVisibleCheckbox].forEach(function(checkbox) {
+            if (checkbox) {
+                checkbox.classList.add('focus:ring-blue-500', 'h-4', 'w-4', 'text-blue-600', 'border-gray-300', 'rounded');
+            }
+        });
+    });
+</script>
+{% endblock %}
