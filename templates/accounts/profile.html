@@ -1,0 +1,212 @@
+{# templates/accounts/profile.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Profile - Hermes{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Your Profile
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'accounts:profile_edit' %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Edit Profile
+        </a>
+        <a href="{% url 'accounts:password_change' %}" class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Change Password
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Personal Information
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Your personal details and account information.
+        </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Full name
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.get_full_name }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Username
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.username }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Email address
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.email }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Phone
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.phone|default:"Not provided" }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Department
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.department|default:"Not provided" }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Job Title
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {{ profile_user.job_title|default:"Not provided" }}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Email Notifications
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if profile_user.email_notifications %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Enabled
+                        </span>
+                    {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Disabled
+                        </span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">
+                    Dark Mode
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if profile_user.dark_mode %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Enabled
+                        </span>
+                    {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Disabled
+                        </span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">
+                    Account Activity
+                </dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    <ul class="border border-gray-200 rounded-md divide-y divide-gray-200">
+                        <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                            <div class="w-0 flex-1 flex items-center">
+                                <svg class="flex-shrink-0 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="ml-2 flex-1 w-0 truncate">
+                                    Last login: {{ profile_user.last_login|date:"F j, Y, g:i a" }}
+                                </span>
+                            </div>
+                        </li>
+                        <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                            <div class="w-0 flex-1 flex items-center">
+                                <svg class="flex-shrink-0 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="ml-2 flex-1 w-0 truncate">
+                                    Last password change: {{ profile_user.last_password_change|date:"F j, Y, g:i a" }}
+                                </span>
+                            </div>
+                        </li>
+                        <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                            <div class="w-0 flex-1 flex items-center">
+                                <svg class="flex-shrink-0 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M7 2a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H7zm6 2v12H7V4h6z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="ml-2 flex-1 w-0 truncate">
+                                    Last login IP: {{ profile_user.last_login_ip|default:"Not available" }}
+                                </span>
+                            </div>
+                        </li>
+                    </ul>
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Active Sessions Section -->
+<div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Active Sessions
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Devices and locations where you're currently logged in.
+            </p>
+        </div>
+        <a href="{% url 'accounts:sessions' %}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+            View all sessions
+        </a>
+    </div>
+    <div class="border-t border-gray-200">
+        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <div class="text-sm font-medium text-gray-500">
+                Device
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Location
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Login Time
+            </div>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            {% for session in recent_sessions %}
+            <li>
+                <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <div class="text-sm text-gray-900">
+                        {{ session.user_agent|default:"Unknown device" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.ip_address|default:"Unknown location" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.login_time|date:"F j, Y, g:i a" }}
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <li class="px-4 py-5 sm:px-6">
+                <div class="text-sm text-gray-500 text-center">
+                    No active sessions found.
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

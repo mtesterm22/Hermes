@@ -1,0 +1,242 @@
+{# templates/dashboard/activity_log.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Activity Log - Hermes{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Activity Log
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'dashboard:index' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Activity Filters -->
+<div class="bg-white shadow rounded-lg mb-6 p-4">
+    <form method="get" action="{% url 'dashboard:activity_log' %}" class="space-y-4 md:space-y-0 md:flex md:items-end md:space-x-4">
+        <div class="w-full md:w-1/4">
+            <label for="activity_type" class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+            <select id="activity_type" name="type" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                <option value="">All Types</option>
+                <option value="workflow_execution" {% if request.GET.type == 'workflow_execution' %}selected{% endif %}>Workflow Executions</option>
+                <option value="datasource_sync" {% if request.GET.type == 'datasource_sync' %}selected{% endif %}>Data Source Syncs</option>
+            </select>
+        </div>
+        <div class="w-full md:w-1/4">
+            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select id="status" name="status" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                <option value="">All Statuses</option>
+                <option value="success" {% if request.GET.status == 'success' %}selected{% endif %}>Success</option>
+                <option value="error" {% if request.GET.status == 'error' %}selected{% endif %}>Error</option>
+                <option value="running" {% if request.GET.status == 'running' %}selected{% endif %}>Running</option>
+                <option value="warning" {% if request.GET.status == 'warning' %}selected{% endif %}>Warning</option>
+            </select>
+        </div>
+        <div class="w-full md:w-1/4">
+            <label for="date_range" class="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+            <select id="date_range" name="date_range" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                <option value="today" {% if request.GET.date_range == 'today' %}selected{% endif %}>Today</option>
+                <option value="yesterday" {% if request.GET.date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                <option value="week" {% if request.GET.date_range == 'week' %}selected{% endif %}>Last 7 Days</option>
+                <option value="month" {% if request.GET.date_range == 'month' %}selected{% endif %}>Last 30 Days</option>
+                <option value="all" {% if request.GET.date_range == 'all' or not request.GET.date_range %}selected{% endif %}>All Time</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Filter
+            </button>
+            <a href="{% url 'dashboard:activity_log' %}" class="ml-2 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Activity Timeline -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <ul class="divide-y divide-gray-200">
+        {% for activity in activities %}
+        <li>
+            <div class="p-4 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            {% if activity.type == 'workflow_execution' %}
+                                {% if activity.status == 'success' %}
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                {% elif activity.status == 'error' %}
+                                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                {% elif activity.status == 'running' %}
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                {% else %}
+                                <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                {% endif %}
+                            {% elif activity.type == 'datasource_sync' %}
+                                {% if activity.status == 'success' %}
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </div>
+                                {% elif activity.status == 'error' %}
+                                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                {% else %}
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                                    </svg>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <div class="ml-4">
+                            <h4 class="text-sm font-medium text-blue-600">
+                                {{ activity.object }}
+                            </h4>
+                            <p class="text-sm text-gray-500">
+                                {% if activity.type == 'workflow_execution' %}
+                                    Workflow execution
+                                {% elif activity.type == 'datasource_sync' %}
+                                    Data source sync
+                                {% endif %}
+                                by {{ activity.user }}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="ml-2 flex-shrink-0 flex">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                              {% if activity.status == 'success' %}bg-green-100 text-green-800
+                              {% elif activity.status == 'error' %}bg-red-100 text-red-800
+                              {% elif activity.status == 'running' %}bg-blue-100 text-blue-800
+                              {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                            {{ activity.status|title }}
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-2 sm:flex sm:justify-between">
+                    <div class="sm:flex">
+                        <p class="flex items-center text-sm text-gray-500">
+                            {{ activity.details }}
+                        </p>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                        </svg>
+                        <p>
+                            {{ activity.timestamp }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </li>
+        {% empty %}
+        <li class="px-4 py-6 sm:px-6 text-center text-gray-500">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+            </svg>
+            <p class="mt-1">No activity records found matching your criteria.</p>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<!-- Pagination -->
+{% if activities.has_other_pages %}
+<div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-4 rounded-lg shadow">
+    <div class="flex-1 flex justify-between sm:hidden">
+        {% if activities.has_previous %}
+        <a href="?page={{ activities.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            Previous
+        </a>
+        {% endif %}
+        {% if activities.has_next %}
+        <a href="?page={{ activities.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+           class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            Next
+        </a>
+        {% endif %}
+    </div>
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+        <div>
+            <p class="text-sm text-gray-700">
+                Showing
+                <span class="font-medium">{{ activities.start_index }}</span>
+                to
+                <span class="font-medium">{{ activities.end_index }}</span>
+                of
+                <span class="font-medium">{{ activities.paginator.count }}</span>
+                results
+            </p>
+        </div>
+        <div>
+            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                {% if activities.has_previous %}
+                <a href="?page={{ activities.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                   class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                {% endif %}
+                
+                {% for i in activities.paginator.page_range %}
+                    {% if activities.number == i %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">
+                        {{ i }}
+                    </span>
+                    {% elif i > activities.number|add:'-3' and i < activities.number|add:'3' %}
+                    <a href="?page={{ i }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                       class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        {{ i }}
+                    </a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if activities.has_next %}
+                <a href="?page={{ activities.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                   class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="sr-only">Next</span>
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

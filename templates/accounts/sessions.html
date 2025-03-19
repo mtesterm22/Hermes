@@ -1,0 +1,202 @@
+{# templates/accounts/sessions.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Active Sessions - Hermes{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Active Sessions
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'accounts:profile' %}" class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Profile
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Your Active Sessions
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Devices and locations where you're currently logged in.
+        </p>
+    </div>
+    <div class="border-t border-gray-200">
+        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-6 sm:gap-4 sm:px-6">
+            <div class="text-sm font-medium text-gray-500">
+                Device
+            </div>
+            <div class="text-sm font-medium text-gray-500 col-span-2">
+                Browser / OS
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                IP Address
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Login Time
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Actions
+            </div>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            {% for session in sessions %}
+            {% if session.status == 'active' %}
+            <li class="{% if session.session_key == request.session.session_key %}bg-blue-50{% endif %}">
+                <div class="px-4 py-5 sm:grid sm:grid-cols-6 sm:gap-4 sm:px-6">
+                    <div class="text-sm text-gray-900">
+                        {% if session.session_key == request.session.session_key %}
+                        <span class="inline-flex items-center">
+                            <svg class="h-4 w-4 text-green-500 mr-1.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            Current
+                        </span>
+                        {% else %}
+                        <span>
+                            {% if 'Mobile' in session.user_agent %}
+                            <svg class="h-5 w-5 text-gray-500 inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M7 2a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H7zm3 14a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                            Mobile
+                            {% else %}
+                            <svg class="h-5 w-5 text-gray-500 inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd" />
+                            </svg>
+                            Desktop
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0 col-span-2">
+                        {{ session.user_agent|default:"Unknown" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.ip_address|default:"Unknown" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.login_time|date:"F j, Y, g:i a" }}
+                    </div>
+                    <div class="mt-1 sm:mt-0">
+                        {% if session.session_key != request.session.session_key %}
+                        <form method="post" action="{% url 'accounts:terminate_session' session.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-red-600 hover:text-red-900">
+                                Terminate
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-gray-500">Current Session</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endif %}
+            {% empty %}
+            <li class="px-4 py-5 sm:px-6">
+                <div class="text-sm text-gray-500 text-center">
+                    No active sessions found.
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% if inactive_sessions %}
+<div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Recent Inactive Sessions
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Sessions that were recently terminated or expired.
+        </p>
+    </div>
+    <div class="border-t border-gray-200">
+        <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-6 sm:gap-4 sm:px-6">
+            <div class="text-sm font-medium text-gray-500">
+                Device
+            </div>
+            <div class="text-sm font-medium text-gray-500 col-span-2">
+                Browser / OS
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                IP Address
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Login Time
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                Status
+            </div>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            {% for session in inactive_sessions %}
+            <li>
+                <div class="px-4 py-5 sm:grid sm:grid-cols-6 sm:gap-4 sm:px-6">
+                    <div class="text-sm text-gray-900">
+                        {% if 'Mobile' in session.user_agent %}
+                        <svg class="h-5 w-5 text-gray-500 inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7 2a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H7zm3 14a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        Mobile
+                        {% else %}
+                        <svg class="h-5 w-5 text-gray-500 inline-block" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd" />
+                        </svg>
+                        Desktop
+                        {% endif %}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0 col-span-2">
+                        {{ session.user_agent|default:"Unknown" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.ip_address|default:"Unknown" }}
+                    </div>
+                    <div class="mt-1 text-sm text-gray-900 sm:mt-0">
+                        {{ session.login_time|date:"F j, Y, g:i a" }}
+                    </div>
+                    <div class="mt-1 sm:mt-0">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            {{ session.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<!-- Security Tips -->
+<div class="mt-8 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Security Tips
+        </h3>
+        <div class="mt-2 max-w-xl text-sm text-gray-500">
+            <p>
+                Review your active sessions regularly to ensure that no unauthorized devices have access to your account. 
+                Here are some additional security recommendations:
+            </p>
+            <ul class="list-disc pl-5 space-y-1 mt-2">
+                <li>Log out from devices you no longer use</li>
+                <li>Be cautious when logging in from public computers</li>
+                <li>Change your password regularly</li>
+                <li>Use a strong, unique password for your account</li>
+                <li>Check for unfamiliar IP addresses or locations</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

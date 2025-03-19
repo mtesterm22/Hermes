@@ -1,0 +1,240 @@
+{# templates/datasources/csv/create.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - Create CSV Data Source{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Create CSV Data Source
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:index' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Sources
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Provide general information about the data source.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Status field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Status
+                            </label>
+                            <div class="mt-1">
+                                {{ form.status }}
+                            </div>
+                            {% if form.status.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.status.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">CSV Settings</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure how the CSV file should be processed.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- File Location field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.file_location.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                File Location
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.file_location }}
+                            </div>
+                            {% if settings_form.file_location.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.file_location.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- File Path field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ settings_form.file_path.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                File Path
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.file_path }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Leave blank if you plan to upload files. For local files, provide the full file path.
+                            </p>
+                            {% if settings_form.file_path.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.file_path.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Delimiter field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.delimiter.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Delimiter
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.delimiter }}
+                            </div>
+                            {% if settings_form.delimiter.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.delimiter.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Quote Char field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.quote_char.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Quote Character
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.quote_char }}
+                            </div>
+                            {% if settings_form.quote_char.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.quote_char.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Encoding field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.encoding.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Encoding
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.encoding }}
+                            </div>
+                            {% if settings_form.encoding.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.encoding.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Has Header field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ settings_form.has_header }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ settings_form.has_header.id_for_label }}" class="font-medium text-gray-700">
+                                        Has Header Row
+                                    </label>
+                                    <p class="text-gray-500">Check if the first row contains column names.</p>
+                                </div>
+                            </div>
+                            {% if settings_form.has_header.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.has_header.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Skip Rows field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.skip_rows.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Skip Rows
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.skip_rows }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Number of rows to skip at the beginning.
+                            </p>
+                            {% if settings_form.skip_rows.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.skip_rows.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Max Rows field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.max_rows.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Max Rows
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.max_rows }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Maximum number of rows to process (leave blank for all).
+                            </p>
+                            {% if settings_form.max_rows.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.max_rows.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:index' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Create
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

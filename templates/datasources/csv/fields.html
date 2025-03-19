@@ -1,0 +1,162 @@
+{# templates/datasources/csv/fields.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} Fields{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }} - Fields
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div>
+                <div>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Fields Configuration</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Define how fields in the CSV file should be processed. You can set key fields, adjust field types, and more.
+                    </p>
+                </div>
+                
+                <div class="mt-6">
+                    {{ formset.management_form }}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Field Name
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Display Name
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Field Type
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Key Field
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Nullable
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Delete
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for form in formset %}
+                                <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        {{ form.id }}
+                                        {{ form.name }}
+                                        {% if form.name.errors %}
+                                        <p class="mt-2 text-sm text-red-600">
+                                            {{ form.name.errors|join:", " }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        {{ form.display_name }}
+                                        {% if form.display_name.errors %}
+                                        <p class="mt-2 text-sm text-red-600">
+                                            {{ form.display_name.errors|join:", " }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        {{ form.field_type }}
+                                        {% if form.field_type.errors %}
+                                        <p class="mt-2 text-sm text-red-600">
+                                            {{ form.field_type.errors|join:", " }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center h-5">
+                                            {{ form.is_key }}
+                                        </div>
+                                        {% if form.is_key.errors %}
+                                        <p class="mt-2 text-sm text-red-600">
+                                            {{ form.is_key.errors|join:", " }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center h-5">
+                                            {{ form.is_nullable }}
+                                        </div>
+                                        {% if form.is_nullable.errors %}
+                                        <p class="mt-2 text-sm text-red-600">
+                                            {{ form.is_nullable.errors|join:", " }}
+                                        </p>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        {% if form.instance.pk %}
+                                        <div class="flex items-center h-5">
+                                            {{ form.DELETE }}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if formset.non_form_errors %}
+                    <div class="mt-4 rounded-md bg-red-50 p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">
+                                    There were errors with your submission
+                                </h3>
+                                <div class="mt-2 text-sm text-red-700">
+                                    <ul class="list-disc pl-5 space-y-1">
+                                        {% for error in formset.non_form_errors %}
+                                        <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:csv_detail' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save Fields
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

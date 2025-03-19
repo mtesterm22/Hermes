@@ -1,0 +1,383 @@
+{# templates/datasources/csv/detail.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }}{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }}
+        </h2>
+        <div class="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                </svg>
+                CSV Data Source
+            </div>
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Last Sync: {% if datasource.last_sync %}{{ datasource.last_sync }}{% else %}Never{% endif %}
+            </div>
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    {% if datasource.status == 'active' %}bg-green-100 text-green-800
+                    {% elif datasource.status == 'error' %}bg-red-100 text-red-800
+                    {% elif datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ datasource.get_status_display }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <form method="post" action="{% url 'datasources:csv_sync' datasource.id %}">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Sync Now
+            </button>
+        </form>
+        <a href="{% url 'datasources:csv_update' datasource.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Edit
+        </a>
+        <a href="{% url 'datasources:profile_mapping' datasource.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Profile Integration
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- Basic Information -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Details about the data source.</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+            <dl class="sm:divide-y sm:divide-gray-200">
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ datasource.name }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Description</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ datasource.description|default:"No description provided" }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Created By</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ datasource.created_by.username|default:"System" }} on {{ datasource.created_at }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Last Modified</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ datasource.modified_by.username|default:"System" }} on {{ datasource.modified_at }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1 sm:mt-0 sm:col-span-2">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if datasource.status == 'active' %}bg-green-100 text-green-800
+                            {% elif datasource.status == 'error' %}bg-red-100 text-red-800
+                            {% elif datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ datasource.get_status_display }}
+                        </span>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+    
+    <!-- CSV Settings -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">CSV Settings</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">How the CSV file is processed.</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+            {% if csv_settings %}
+            <dl class="sm:divide-y sm:divide-gray-200">
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">File Location</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.get_file_location_display }}</dd>
+                </div>
+                {% if csv_settings.file_path %}
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">File Path</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.file_path }}</dd>
+                </div>
+                {% endif %}
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Delimiter</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.delimiter|default:"," }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Quote Character</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.quote_char|default:'"' }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Encoding</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.encoding|default:"utf-8" }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Has Header</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.has_header|yesno:"Yes,No" }}</dd>
+                </div>
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Skip Rows</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.skip_rows }}</dd>
+                </div>
+                {% if csv_settings.max_rows %}
+                <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt class="text-sm font-medium text-gray-500">Max Rows</dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ csv_settings.max_rows }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+            {% else %}
+            <div class="py-4 px-6">
+                <p class="text-sm text-gray-500">CSV settings not found. Please update the data source.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- File Upload -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">CSV Files</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Upload and manage CSV files.</p>
+        </div>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <form method="post" action="{% url 'datasources:csv_upload' datasource.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="sm:flex sm:items-center">
+                <div class="sm:flex-grow">
+                    <label for="{{ upload_form.file.id_for_label }}" class="block text-sm font-medium text-gray-700 sr-only">
+                        CSV File
+                    </label>
+                    {{ upload_form.file }}
+                </div>
+                <div class="mt-3 sm:mt-0 sm:ml-4">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Upload
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Recent uploads -->
+        {% if uploads %}
+        <div class="mt-6 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Upload Date
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            File Name
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Size
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Rows
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for upload in uploads %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ upload.uploaded_at }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ upload.file.name|default:""|cut:"csv_files/"|cut:"/" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if upload.file_size %}
+                                {% if upload.file_size < 1024 %}
+                                    {{ upload.file_size }} bytes
+                                {% elif upload.file_size < 1048576 %}
+                                    {{ upload.file_size|divisibleby:"1024"|floatformat:1 }} KB
+                                {% else %}
+                                    {{ upload.file_size|divisibleby:"1048576"|floatformat:1 }} MB
+                                {% endif %}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ upload.row_count|default:"Unknown" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="mt-6">
+            <p class="text-sm text-gray-500">No files have been uploaded yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Fields -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Fields</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Columns detected in the CSV file.</p>
+        </div>
+        <div>
+            <form method="post" action="{% url 'datasources:csv_detect_fields' datasource.id %}">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Auto-detect Fields
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if fields %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Display Name
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Key
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Nullable
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sample
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for field in fields %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ field.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ field.display_name|default:field.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ field.field_type }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ field.is_key|yesno:"Yes,No" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ field.is_nullable|yesno:"Yes,No" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ field.sample_data|truncatechars:30 }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-4 px-6">
+            <p class="text-sm text-gray-500">No fields detected yet. Upload a CSV file and use the Auto-detect Fields button.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Syncs -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Syncs</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">History of data synchronization.</p>
+        </div>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if recent_syncs %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Start Time
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            End Time
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Records Processed
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Triggered By
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for sync in recent_syncs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ sync.start_time }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ sync.end_time|default:"In Progress" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if sync.status == 'success' %}bg-green-100 text-green-800
+                                {% elif sync.status == 'error' %}bg-red-100 text-red-800
+                                {% elif sync.status == 'running' %}bg-blue-100 text-blue-800
+                                {% elif sync.status == 'warning' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ sync.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ sync.records_processed }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ sync.triggered_by.username|default:"System" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-4 px-6">
+            <p class="text-sm text-gray-500">No synchronization events yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

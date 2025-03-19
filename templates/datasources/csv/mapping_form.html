@@ -1,0 +1,230 @@
+{# templates/datasources/csv/mapping_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - {% if mapping %}Edit{% else %}Create{% endif %} Field Mapping{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }} - {% if mapping %}Edit{% else %}Create{% endif %} Field Mapping
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:profile_mapping' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Profile Mapping
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Field Mapping</h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Define how a field from this data source maps to a user profile attribute.
+                        </p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Source Field -->
+                        <div class="sm:col-span-3">
+                            <label for="id_source_field" class="block text-sm font-medium text-gray-700">
+                                Source Field
+                            </label>
+                            <div class="mt-1">
+                                <select id="id_source_field" name="source_field" 
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                    {% for field in fields %}
+                                    <option value="{{ field.id }}" {% if mapping and mapping.source_field.id == field.id %}selected{% endif %}>
+                                        {{ field.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% if form.source_field.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.source_field.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Profile Attribute -->
+                        <div class="sm:col-span-3">
+                            <label for="id_profile_attribute" class="block text-sm font-medium text-gray-700">
+                                Profile Attribute
+                            </label>
+                            <div class="mt-1">
+                                <input type="text" id="id_profile_attribute" name="profile_attribute" 
+                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                       value="{{ mapping.profile_attribute|default:'' }}">
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Common attributes: first_name, last_name, email, phone, etc.
+                            </p>
+                            {% if form.profile_attribute.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.profile_attribute.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Mapping Type -->
+                        <div class="sm:col-span-3">
+                            <label for="id_mapping_type" class="block text-sm font-medium text-gray-700">
+                                Mapping Type
+                            </label>
+                            <div class="mt-1">
+                                <select id="id_mapping_type" name="mapping_type" 
+                                        class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                    <option value="direct" {% if mapping and mapping.mapping_type == 'direct' %}selected{% endif %}>Direct Mapping</option>
+                                    <option value="transform" {% if mapping and mapping.mapping_type == 'transform' %}selected{% endif %}>Transformation</option>
+                                    <option value="multi" {% if mapping and mapping.mapping_type == 'multi' %}selected{% endif %}>Multiple Values</option>
+                                </select>
+                            </div>
+                            {% if form.mapping_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.mapping_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Priority -->
+                        <div class="sm:col-span-3">
+                            <label for="id_priority" class="block text-sm font-medium text-gray-700">
+                                Priority
+                            </label>
+                            <div class="mt-1">
+                                <input type="number" id="id_priority" name="priority" 
+                                       class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                       value="{{ mapping.priority|default:'100' }}">
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Higher priority values override lower ones when conflicts occur.
+                            </p>
+                            {% if form.priority.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.priority.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Key Field -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="id_is_key_field" name="is_key_field" type="checkbox" 
+                                           class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           {% if mapping and mapping.is_key_field %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="id_is_key_field" class="font-medium text-gray-700">Identity Key Field</label>
+                                    <p class="text-gray-500">Used to match records to user profiles. Common key fields include email address, employee ID, etc.</p>
+                                </div>
+                            </div>
+                            {% if form.is_key_field.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_key_field.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Multivalued -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="id_is_multivalued" name="is_multivalued" type="checkbox" 
+                                           class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           {% if mapping and mapping.is_multivalued %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="id_is_multivalued" class="font-medium text-gray-700">Allow Multiple Values</label>
+                                    <p class="text-gray-500">When enabled, multiple values can be stored for this attribute (e.g., multiple email addresses).</p>
+                                </div>
+                            </div>
+                            {% if form.is_multivalued.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_multivalued.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Transformation Logic -->
+                        <div id="transformation_logic_container" class="sm:col-span-6 {% if not mapping or mapping.mapping_type != 'transform' %}hidden{% endif %}">
+                            <label for="id_transformation_logic" class="block text-sm font-medium text-gray-700">
+                                Transformation Logic
+                            </label>
+                            <div class="mt-1">
+                                <textarea id="id_transformation_logic" name="transformation_logic" rows="3"
+                                         class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">{{ mapping.transformation_logic|default:'' }}</textarea>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Python expression to transform the value. Example: <code>value.upper()</code> or <code>value.split('@')[0]</code>
+                            </p>
+                            {% if form.transformation_logic.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.transformation_logic.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Enabled -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="id_is_enabled" name="is_enabled" type="checkbox" 
+                                           class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                           {% if not mapping or mapping.is_enabled %}checked{% endif %}>
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="id_is_enabled" class="font-medium text-gray-700">Enabled</label>
+                                    <p class="text-gray-500">When disabled, this mapping will be ignored during synchronization.</p>
+                                </div>
+                            </div>
+                            {% if form.is_enabled.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_enabled.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:profile_mapping' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if mapping %}Save{% else %}Create{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show/hide transformation logic based on mapping type
+        const mappingTypeSelect = document.getElementById('id_mapping_type');
+        const transformationLogicContainer = document.getElementById('transformation_logic_container');
+        
+        function updateVisibility() {
+            transformationLogicContainer.classList.toggle('hidden', mappingTypeSelect.value !== 'transform');
+        }
+        
+        mappingTypeSelect.addEventListener('change', updateVisibility);
+    });
+</script>
+{% endblock %}
