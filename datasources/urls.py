@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import csv_views
 from . import profile_views 
+from . import database_views
 
 app_name = 'datasources'
 
@@ -43,4 +44,22 @@ urlpatterns = [
     path('<int:pk>/create-mapping/', profile_views.CreateFieldMappingView.as_view(), name='create_mapping'),
     path('<int:datasource_pk>/edit-mapping/<int:mapping_pk>/', profile_views.EditFieldMappingView.as_view(), name='edit_mapping'),
     path('<int:datasource_pk>/delete-mapping/<int:mapping_pk>/', profile_views.DeleteFieldMappingView.as_view(), name='delete_mapping'),
+
+    # Database-specific views
+    path('database/create/', database_views.DatabaseDataSourceCreateView.as_view(), name='database_create'),
+    path('database/<int:pk>/', database_views.DatabaseDataSourceDetailView.as_view(), name='database_detail'),
+    path('database/<int:pk>/update/', database_views.DatabaseDataSourceUpdateView.as_view(), name='database_update'),
+    path('database/<int:pk>/test-connection/', database_views.DatabaseTestConnectionView.as_view(), name='database_test_connection'),
+    path('database/<int:pk>/sync/', database_views.DatabaseDataSourceSyncView.as_view(), name='database_sync'),
+    path('database/<int:pk>/fields/', database_views.DatabaseFieldsUpdateView.as_view(), name='database_fields'),
+    path('database/<int:pk>/detect-fields/', database_views.DatabaseDetectFieldsView.as_view(), name='database_detect_fields'),
+    path('database/<int:pk>/tables/', database_views.DatabaseTableListView.as_view(), name='database_tables'),
+    path('database/<int:pk>/tables/<str:table_name>/', database_views.DatabaseTableSchemaView.as_view(), name='database_table_schema'),
+    
+    # Database query management
+    path('database/<int:datasource_pk>/queries/create/', database_views.DatabaseQueryCreateView.as_view(), name='database_query_create'),
+    path('database/queries/<int:pk>/update/', database_views.DatabaseQueryUpdateView.as_view(), name='database_query_update'),
+    path('database/queries/<int:pk>/delete/', database_views.DatabaseQueryDeleteView.as_view(), name='database_query_delete'),
+    path('database/queries/<int:pk>/execute/', database_views.DatabaseQueryExecuteView.as_view(), name='database_query_execute'),
+    path('database/executions/<int:pk>/', database_views.DatabaseQueryExecutionDetailView.as_view(), name='database_execution_detail'),
 ]
