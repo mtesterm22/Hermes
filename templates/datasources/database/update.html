@@ -1,19 +1,19 @@
-{# templates/datasources/database/create.html #}
+{# templates/datasources/database/update.html #}
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Hermes - Create Database Data Source{% endblock %}
+{% block title %}Hermes - Edit {{ datasource.name }}{% endblock %}
 
 {% block page_header %}
 <div class="md:flex md:items-center md:justify-between">
     <div class="flex-1 min-w-0">
         <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-            Create Database Data Source
+            Edit {{ datasource.name }}
         </h2>
     </div>
     <div class="mt-4 flex md:mt-0 md:ml-4">
-        <a href="{% url 'datasources:index' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            Back to Data Sources
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
         </a>
     </div>
 </div>
@@ -29,7 +29,7 @@
                 <div>
                     <div>
                         <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
-                        <p class="mt-1 text-sm text-gray-500">Provide general information about the data source.</p>
+                        <p class="mt-1 text-sm text-gray-500">Update general information about the data source.</p>
                     </div>
                     
                     <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
@@ -41,183 +41,9 @@
                             <div class="mt-1">
                                 {{ form.name }}
                             </div>
-                            {% if form.name.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ form.name.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Description field -->
-                        <div class="sm:col-span-6">
-                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Description
-                            </label>
-                            <div class="mt-1">
-                                {{ form.description }}
-                            </div>
-                            {% if form.description.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ form.description.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Status field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Status
-                            </label>
-                            <div class="mt-1">
-                                {{ form.status }}
-                            </div>
-                            {% if form.status.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ form.status.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="pt-8">
-                    <div>
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Database Connection Settings</h3>
-                        <p class="mt-1 text-sm text-gray-500">Configure the database connection details.</p>
-                    </div>
-                    
-                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                        <!-- Database Type field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ settings_form.db_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Database Type
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.db_type }}
-                            </div>
-                            {% if settings_form.db_type.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.db_type.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Host field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ settings_form.host.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Host
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.host }}
-                            </div>
-                            {% if settings_form.host.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.host.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Port field -->
-                        <div class="sm:col-span-2">
-                            <label for="{{ settings_form.port.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Port
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.port }}
-                            </div>
-                            {% if settings_form.port.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.port.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Database Name field -->
-                        <div class="sm:col-span-4">
-                            <label for="{{ settings_form.database_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Database Name
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.database_name }}
-                            </div>
-                            {% if settings_form.database_name.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.database_name.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Schema field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ settings_form.schema.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Schema
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.schema }}
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500">
-                                Optional database schema (e.g. "public" for PostgreSQL)
-                            </p>
-                            {% if settings_form.schema.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.schema.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Username field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ settings_form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Username
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.username }}
-                            </div>
-                            {% if settings_form.username.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.username.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Password field -->
-                        <div class="sm:col-span-3">
-                            <label for="{{ settings_form.password.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                Password
-                            </label>
-                            <div class="mt-1">
-                                {{ settings_form.password }}
-                            </div>
-                            <p class="mt-1 text-sm text-gray-500">
-                                Password will be stored securely and encrypted.
-                            </p>
-                            {% if settings_form.password.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.password.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Use SSL field -->
-                        <div class="sm:col-span-6">
-                            <div class="flex items-start">
-                                <div class="flex items-center h-5">
-                                    {{ settings_form.use_ssl }}
-                                </div>
-                                <div class="ml-3 text-sm">
-                                    <label for="{{ settings_form.use_ssl.id_for_label }}" class="font-medium text-gray-700">Use SSL Connection</label>
-                                    <p class="text-gray-500">Enable SSL/TLS for secure database connection.</p>
-                                </div>
-                            </div>
-                            {% if settings_form.use_ssl.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ settings_form.use_ssl.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
                         
                         <!-- SSL Certificate Path field -->
-                        <div class="sm:col-span-6">
+                        <div id="ssl-cert-path-container" class="sm:col-span-6 {% if not settings_form.instance.use_ssl %}hidden{% endif %}">
                             <label for="{{ settings_form.ssl_cert_path.id_for_label }}" class="block text-sm font-medium text-gray-700">
                                 SSL Certificate Path
                             </label>
@@ -326,14 +152,14 @@
             
             <div class="pt-5">
                 <div class="flex justify-end">
-                    <a href="{% url 'datasources:index' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <a href="{% url 'datasources:database_detail' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         Cancel
                     </a>
                     <button type="submit" name="test_connection" class="ml-3 inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Create & Test Connection
+                        Save & Test Connection
                     </button>
                     <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        Create
+                        Save
                     </button>
                 </div>
             </div>
@@ -367,20 +193,191 @@
         
         // Toggle SSL certificate path visibility based on SSL checkbox
         const sslCheckbox = document.getElementById('{{ settings_form.use_ssl.id_for_label }}');
-        const sslCertPathField = document.getElementById('{{ settings_form.ssl_cert_path.id_for_label }}').closest('.sm\\:col-span-6');
+        const sslCertPathContainer = document.getElementById('ssl-cert-path-container');
         
         function updateSslCertVisibility() {
             if (sslCheckbox.checked) {
-                sslCertPathField.classList.remove('hidden');
+                sslCertPathContainer.classList.remove('hidden');
             } else {
-                sslCertPathField.classList.add('hidden');
+                sslCertPathContainer.classList.add('hidden');
             }
         }
         
         sslCheckbox.addEventListener('change', updateSslCertVisibility);
-        
-        // Initial setup
-        updateSslCertVisibility();
     });
 </script>
 {% endblock %}
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Status field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Status
+                            </label>
+                            <div class="mt-1">
+                                {{ form.status }}
+                            </div>
+                            {% if form.status.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.status.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Database Connection Settings</h3>
+                        <p class="mt-1 text-sm text-gray-500">Update the database connection details.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Database Type field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.db_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Database Type
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.db_type }}
+                            </div>
+                            {% if settings_form.db_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.db_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Host field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.host.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Host
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.host }}
+                            </div>
+                            {% if settings_form.host.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.host.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Port field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ settings_form.port.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Port
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.port }}
+                            </div>
+                            {% if settings_form.port.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.port.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Database Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ settings_form.database_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Database Name
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.database_name }}
+                            </div>
+                            {% if settings_form.database_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.database_name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Schema field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.schema.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Schema
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.schema }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Optional database schema (e.g. "public" for PostgreSQL)
+                            </p>
+                            {% if settings_form.schema.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.schema.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Username field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Username
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.username }}
+                            </div>
+                            {% if settings_form.username.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.username.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Password field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ settings_form.password.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Password
+                            </label>
+                            <div class="mt-1">
+                                {{ settings_form.password }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Leave blank to keep the current password. When provided, it will be stored securely and encrypted.
+                            </p>
+                            {% if settings_form.password.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.password.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Use SSL field -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ settings_form.use_ssl }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ settings_form.use_ssl.id_for_label }}" class="font-medium text-gray-700">Use SSL Connection</label>
+                                    <p class="text-gray-500">Enable SSL/TLS for secure database connection.</p>
+                                </div>
+                            </div>
+                            {% if settings_form.use_ssl.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ settings_form.use_ssl.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>

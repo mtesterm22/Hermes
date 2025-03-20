@@ -1,0 +1,212 @@
+{# templates/datasources/database/query_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Database Query{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Database Query
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Query Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define basic information for this query.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Query Type field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.query_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Query Type
+                            </label>
+                            <div class="mt-1">
+                                {{ form.query_type }}
+                            </div>
+                            {% if form.query_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.query_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Query Text</h3>
+                        <p class="mt-1 text-sm text-gray-500">Enter the SQL query to execute.</p>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <div class="bg-gray-50 p-4 rounded-md mb-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-3 text-sm text-blue-700">
+                                    <p>
+                                        Use <code class="font-mono bg-blue-100 px-1 rounded">:parameter_name</code> syntax for query parameters.
+                                        For example: <code class="font-mono bg-blue-100 px-1 rounded">WHERE user_id = :user_id</code>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.query_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                SQL Query
+                            </label>
+                            <div class="mt-1">
+                                {{ form.query_text }}
+                            </div>
+                            {% if form.query_text.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.query_text.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Parameters</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define default parameters for this query (optional).</p>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.parameters.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Default Parameters (JSON)
+                            </label>
+                            <div class="mt-1">
+                                {{ form.parameters }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                JSON format, e.g. <code class="font-mono bg-gray-100 px-1 rounded">{"user_id": 123, "status": "active"}</code>
+                            </p>
+                            {% if form.parameters.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.parameters.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Additional query options.</p>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_enabled }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_enabled.id_for_label }}" class="font-medium text-gray-700">Enabled</label>
+                                    <p class="text-gray-500">Enable or disable this query for synchronization.</p>
+                                </div>
+                            </div>
+                            {% if form.is_enabled.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.is_enabled.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:database_detail' datasource.id %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Automatically format JSON in parameters field when it loses focus
+        const parametersField = document.getElementById('{{ form.parameters.id_for_label }}');
+        if (parametersField) {
+            parametersField.addEventListener('blur', function() {
+                try {
+                    // Try to parse and prettify the JSON
+                    const value = parametersField.value.trim();
+                    if (value) {
+                        const parsed = JSON.parse(value);
+                        parametersField.value = JSON.stringify(parsed, null, 2);
+                    }
+                } catch (e) {
+                    // If it's not valid JSON, leave it as is
+                    console.log('Invalid JSON, not formatting');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
