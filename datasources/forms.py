@@ -146,10 +146,9 @@ class DatabaseConnectionForm(forms.ModelForm):
             
             field.widget.attrs.update({'class': css_class})
             
-        # Initially hide Oracle-specific fields
         if not self.instance or self.instance.db_type != 'oracle':
-            self.fields['oracle_service_name'].widget.attrs.update({'class': 'hidden'})
-            self.fields['oracle_sid'].widget.attrs.update({'class': 'hidden'})
+            # Don't add hidden class to the fields directly
+            pass
     
     def get_default_port(self, db_type):
         """Get the default port for a database type."""
@@ -178,46 +177,18 @@ class DatabaseConnectionForm(forms.ModelForm):
             credentials_dict = {'password': self.cleaned_data['password']}
             encrypted = encrypt_credentials(credentials_dict)
             instance.credentials['encrypted_credentials'] = encrypted
+            
+            # Add this debug statement
+            print(f"Saved encrypted credentials: {instance.credentials}")
         
         if commit:
             instance.save()
         
         return instance
+        
+        return instance
 
-class DatabaseDataSourceForm(forms.ModelForm):
-    """
-    Form for creating/editing a database data source.
-    """
-    create_new_connection = forms.BooleanField(
-        label=_("Create new database connection"),
-        required=False,
-        initial=False,
-        widget=forms.CheckboxInput(attrs={
-            'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded',
-            'data-toggle': 'connection-form'
-        })
-    )
-    
-    class Meta:
-        model = DatabaseDataSource
-        fields = ['connection', 'query_timeout', 'max_rows']
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Limit connections to active ones
-        self.fields['connection'].queryset = DatabaseConnection.objects.all().order_by('name')
-        self.fields['connection'].widget.attrs.update({
-            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
-        })
-        
-        # Apply Tailwind classes
-        for field_name, field in self.fields.items():
-            if isinstance(field.widget, forms.CheckboxInput):
-                continue  # Skip checkboxes, they have custom styling
-                
-            css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
-            field.widget.attrs.update({'class': css_class})
+
 
 class DatabaseSettingsForm(forms.ModelForm):
     """
@@ -236,6 +207,72 @@ class DatabaseSettingsForm(forms.ModelForm):
             field.widget.attrs.update({'class': css_class})
 
 
+class DatabaseDataSourceForm(forms.ModelForm):
+    """
+    Form for creating/editing a database data source with an integrated query.
+    """
+    name = forms.CharField(
+        label=_("Data Source Name"),
+        max_length=100,
+        widget=forms.TextInput(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+    )
+    
+    description = forms.CharField(
+        label=_("Description"),
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 3, 
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    status = forms.ChoiceField(
+        label=_("Status"),
+        choices=DataSource.STATUS_CHOICES,
+        initial='active',
+        widget=forms.Select(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+    )
+    
+    create_new_connection = forms.BooleanField(
+        label=_("Create new database connection"),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded',
+            'data-toggle': 'connection-form'
+        })
+    )
+    
+    connection = forms.ModelChoiceField(
+        label=_("Database Connection"),
+        queryset=DatabaseConnection.objects.all(),
+        required=True,
+        widget=forms.Select(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+    )
+    
+    query_timeout = forms.IntegerField(
+        label=_("Query Timeout (seconds)"),
+        initial=60,
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+    )
+    
+    max_rows = forms.IntegerField(
+        label=_("Maximum Rows"),
+        initial=10000,
+        min_value=1,
+        widget=forms.NumberInput(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+    )
+    
+    class Meta:
+        model = DatabaseDataSource  # Add this model class
+        fields = ['connection', 'query_timeout', 'max_rows']  # These are the fields from the DatabaseDataSource model
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set the queryset for connections
+        self.fields['connection'].queryset = DatabaseConnection.objects.all().order_by('name')
+
 class DatabaseQueryForm(forms.ModelForm):
     """
     Form for database queries.
@@ -244,35 +281,13 @@ class DatabaseQueryForm(forms.ModelForm):
         model = DatabaseQuery
         fields = ['name', 'description', 'query_text', 'query_type', 'parameters', 'is_enabled']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
-            'query_text': forms.Textarea(attrs={'rows': 8, 'class': 'font-mono'}),
-            'parameters': forms.Textarea(attrs={'rows': 3, 'class': 'font-mono'}),
+            'name': forms.TextInput(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'description': forms.Textarea(attrs={'rows': 2, 'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'query_text': forms.Textarea(attrs={'rows': 10, 'class': 'font-mono focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'query_type': forms.Select(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'parameters': forms.Textarea(attrs={'rows': 3, 'class': 'font-mono focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'is_enabled': forms.CheckboxInput(attrs={'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'}),
         }
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # Apply Tailwind classes to form fields
-        for field_name, field in self.fields.items():
-            css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
-            if isinstance(field.widget, forms.CheckboxInput):
-                css_class = 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
-            
-            field.widget.attrs.update({'class': css_class})
-    
-    def clean_parameters(self):
-        """Convert parameters from string to JSON."""
-        parameters = self.cleaned_data.get('parameters')
-        
-        if isinstance(parameters, str):
-            import json
-            try:
-                return json.loads(parameters)
-            except:
-                # If it's not valid JSON, return as a plain string
-                return parameters
-        
-        return parameters
 
 class DataSourceBaseForm(forms.ModelForm):
     """

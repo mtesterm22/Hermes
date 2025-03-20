@@ -44,21 +44,26 @@ class DatabaseConnector:
     
     def _get_connector(self):
         """
-        Get a database connector instance.
-        
-        Returns:
-            Database connector instance
+        Get the appropriate database connector.
         """
         if self._connector is None:
-            # Get connection info from the linked database connection
+            # Get connection info
             connection_info = self.db_settings.get_connection_info()
+            
+            # Debug output
+            print("Connection info for query (excluding password):", 
+                {k:v for k,v in connection_info.items() if k != 'password'})
+            print("Password present:", 'password' in connection_info)
+            
+            # Get connector
+            from core.database import get_connector
             self._connector = get_connector(connection_info)
             
             if self._connector is None:
                 raise ValueError(f"Unsupported database type: {connection_info.get('type')}")
         
         return self._connector
-    
+        
     
     def test_connection(self) -> Tuple[bool, str]:
         """

@@ -88,9 +88,13 @@ class DatabaseConnection(models.Model):
             # Check for encrypted credentials
             if 'encrypted_credentials' in self.credentials:
                 encrypted_creds = self.credentials.get('encrypted_credentials')
-                decrypted_creds = decrypt_credentials(encrypted_creds)
-                if decrypted_creds and 'password' in decrypted_creds:
-                    connection_info['password'] = decrypted_creds['password']
+                try:
+                    from core.utils.encryption import decrypt_credentials
+                    decrypted_creds = decrypt_credentials(encrypted_creds)
+                    if decrypted_creds and 'password' in decrypted_creds:
+                        connection_info['password'] = decrypted_creds['password']
+                except Exception as e:
+                    print(f"Error decrypting credentials: {str(e)}")
             # Fall back to direct password storage (legacy support)
             elif 'password' in self.credentials:
                 connection_info['password'] = self.credentials.get('password')

@@ -1,4 +1,4 @@
-{# templates/datasources/database/create.html - updated version #}
+{# templates/datasources/database/create.html #}
 {% extends "base.html" %}
 {% load static %}
 
@@ -36,37 +36,47 @@
                     <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                         <!-- Name field -->
                         <div class="sm:col-span-4">
-                            <label for="id_name" class="block text-sm font-medium text-gray-700">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
                                 Name
                             </label>
                             <div class="mt-1">
-                                <input type="text" name="name" id="id_name" class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                {{ form.name }}
                             </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
                         </div>
                         
                         <!-- Description field -->
                         <div class="sm:col-span-6">
-                            <label for="id_description" class="block text-sm font-medium text-gray-700">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
                                 Description
                             </label>
                             <div class="mt-1">
-                                <textarea name="description" id="id_description" rows="3" class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"></textarea>
+                                {{ form.description }}
                             </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
                         </div>
                         
                         <!-- Status field -->
                         <div class="sm:col-span-3">
-                            <label for="id_status" class="block text-sm font-medium text-gray-700">
+                            <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
                                 Status
                             </label>
                             <div class="mt-1">
-                                <select name="status" id="id_status" class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
-                                    <option value="active">Active</option>
-                                    <option value="warning">Warning</option>
-                                    <option value="error">Error</option>
-                                    <option value="disabled">Disabled</option>
-                                </select>
+                                {{ form.status }}
                             </div>
+                            {% if form.status.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.status.errors|join:", " }}
+                            </p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -142,6 +152,120 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Query Settings -->
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">SQL Query</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define the SQL query for this data source.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Query Name -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ query_form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Query Name
+                            </label>
+                            <div class="mt-1">
+                                {{ query_form.name }}
+                            </div>
+                            {% if query_form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ query_form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Query Type -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ query_form.query_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Query Type
+                            </label>
+                            <div class="mt-1">
+                                {{ query_form.query_type }}
+                            </div>
+                            {% if query_form.query_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ query_form.query_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Query Description -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ query_form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Query Description
+                            </label>
+                            <div class="mt-1">
+                                {{ query_form.description }}
+                            </div>
+                            {% if query_form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ query_form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- SQL Query -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ query_form.query_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                SQL Query
+                            </label>
+                            
+                            {% if tables %}
+                            <div class="mt-1 mb-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Available Tables</label>
+                                <select id="table-list" class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" onchange="insertTableName()">
+                                    <option value="">-- Select a table --</option>
+                                    {% for table in tables %}
+                                    <option value="{{ table }}">{{ table }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-1">
+                                {{ query_form.query_text }}
+                            </div>
+                            {% if query_form.query_text.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ query_form.query_text.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Query Parameters -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ query_form.parameters.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Parameters (JSON)
+                            </label>
+                            <div class="mt-1">
+                                {{ query_form.parameters }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                JSON format, e.g., <code>{"user_id": 123, "status": "active"}</code>
+                            </p>
+                            {% if query_form.parameters.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ query_form.parameters.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Enabled -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ query_form.is_enabled }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ query_form.is_enabled.id_for_label }}" class="font-medium text-gray-700">Enabled</label>
+                                    <p class="text-gray-500">When enabled, this query will be used during data source synchronization.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="pt-5">
@@ -178,6 +302,85 @@
             createNewConnectionCheckbox.addEventListener('change', updateVisibility);
             updateVisibility(); // Initial state
         }
+        
+        // Connection dropdown change handler to reload the page with selected connection
+        const connectionSelect = document.getElementById('{{ form.connection.id_for_label }}');
+if (connectionSelect) {
+    connectionSelect.addEventListener('change', function() {
+        const connectionId = this.value;
+        if (connectionId) {
+            // Fetch tables for this connection via AJAX
+            fetch(`/datasources/connections/${connectionId}/tables/`)
+                .then(response => response.json())
+                .then(data => {
+                    // Update the tables dropdown if it exists
+                    const tableSelect = document.getElementById('table-list');
+                    if (tableSelect) {
+                        // Clear existing options
+                        tableSelect.innerHTML = '<option value="">-- Select a table --</option>';
+                        
+                        // Add options for each table
+                        if (data.tables && data.tables.length > 0) {
+                            data.tables.forEach(table => {
+                                const option = document.createElement('option');
+                                option.value = table;
+                                option.textContent = table;
+                                tableSelect.appendChild(option);
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching tables:', error);
+                });
+        }
     });
+        }
+        
+        // Restore form data if it exists
+        try {
+            const savedData = JSON.parse(localStorage.getItem('db_datasource_form'));
+            if (savedData) {
+                // Restore values
+                if (savedData.name) document.getElementById('{{ form.name.id_for_label }}').value = savedData.name;
+                if (savedData.description) document.getElementById('{{ form.description.id_for_label }}').value = savedData.description;
+                if (savedData.status) document.getElementById('{{ form.status.id_for_label }}').value = savedData.status;
+                if (savedData.query_timeout) document.getElementById('{{ form.query_timeout.id_for_label }}').value = savedData.query_timeout;
+                if (savedData.max_rows) document.getElementById('{{ form.max_rows.id_for_label }}').value = savedData.max_rows;
+                if (savedData.query_name) document.getElementById('{{ query_form.name.id_for_label }}').value = savedData.query_name;
+                if (savedData.query_description) document.getElementById('{{ query_form.description.id_for_label }}').value = savedData.query_description;
+                if (savedData.query_text) document.getElementById('{{ query_form.query_text.id_for_label }}').value = savedData.query_text;
+                if (savedData.query_type) document.getElementById('{{ query_form.query_type.id_for_label }}').value = savedData.query_type;
+                if (savedData.parameters) document.getElementById('{{ query_form.parameters.id_for_label }}').value = savedData.parameters;
+                if (savedData.is_enabled !== undefined) document.getElementById('{{ query_form.is_enabled.id_for_label }}').checked = savedData.is_enabled;
+            }
+        } catch (e) {
+            console.error("Error restoring form data", e);
+        }
+    });
+    
+    // Function to insert selected table name into query text
+    function insertTableName() {
+        const tableSelect = document.getElementById('table-list');
+        const queryTextarea = document.getElementById('{{ query_form.query_text.id_for_label }}');
+        
+        if (tableSelect.value) {
+            // If textarea is empty, insert a SELECT * query
+            if (!queryTextarea.value.trim()) {
+                queryTextarea.value = `SELECT * FROM ${tableSelect.value} LIMIT 100`;
+            } else {
+                // Otherwise insert at cursor position
+                const cursorPos = queryTextarea.selectionStart;
+                const textBefore = queryTextarea.value.substring(0, cursorPos);
+                const textAfter = queryTextarea.value.substring(cursorPos);
+                queryTextarea.value = textBefore + tableSelect.value + textAfter;
+                
+                // Reset cursor position
+                queryTextarea.focus();
+                queryTextarea.selectionStart = cursorPos + tableSelect.value.length;
+                queryTextarea.selectionEnd = cursorPos + tableSelect.value.length;
+            }
+        }
+    }
 </script>
 {% endblock %}

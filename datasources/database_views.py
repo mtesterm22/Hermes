@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
     """
-    View for creating a new database data source
+    View for creating a new database query data source
     """
     template_name = 'datasources/database/create.html'
     form_class = DatabaseDataSourceForm
@@ -36,37 +36,72 @@ class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         # Get available connections
         context['connections'] = DatabaseConnection.objects.all().order_by('name')
+        
+        # Add query form
+        if self.request.POST:
+            context['query_form'] = DatabaseQueryForm(self.request.POST)
+        else:
+            context['query_form'] = DatabaseQueryForm()
+            
+        # Try to get available tables for reference if connection_id is in GET
+        connection_id = self.request.GET.get('connection_id')
+        if connection_id:
+            try:
+                connection = DatabaseConnection.objects.get(id=connection_id)
+                from core.database import get_connector
+                connector = get_connector(connection.get_connection_info())
+                context['tables'] = connector.get_table_names()
+            except Exception as e:
+                context['connection_error'] = str(e)
+                
         return context
     
     def form_valid(self, form):
-        with transaction.atomic():
-            # Create the base DataSource
-            datasource = DataSource(
-                name=self.request.POST.get('name', ''),
-                description=self.request.POST.get('description', ''),
-                type='database',
-                status=self.request.POST.get('status', 'active'),
-                created_by=self.request.user,
-                modified_by=self.request.user
-            )
-            datasource.save()
-            
-            # Handle connection
-            create_new = form.cleaned_data.get('create_new_connection', False)
-            
-            if create_new:
-                # Redirect to connection creation page with return URL
-                messages.info(self.request, _('Please create a new database connection first.'))
-                return redirect(reverse('datasources:connection_create') + f'?return_to=datasource&datasource_id={datasource.id}')
+        context = self.get_context_data()
+        query_form = context['query_form']
+        
+        if query_form.is_valid():
+            with transaction.atomic():
+                # Create the base DataSource
+                datasource = DataSource(
+                    name=form.cleaned_data['name'],
+                    description=form.cleaned_data['description'],
+                    type='database',
+                    status=form.cleaned_data.get('status', 'active'),
+                    created_by=self.request.user,
+                    modified_by=self.request.user
+                )
+                datasource.save()
                 
-            else:
-                # Save the database settings with existing connection
-                db_settings = form.save(commit=False)
-                db_settings.datasource = datasource
+                # Create the database settings with selected connection
+                db_settings = DatabaseDataSource(
+                    datasource=datasource,
+                    connection=form.cleaned_data['connection'],
+                    query_timeout=form.cleaned_data.get('query_timeout', 60),
+                    max_rows=form.cleaned_data.get('max_rows', 10000)
+                )
                 db_settings.save()
                 
-                messages.success(self.request, _('Database data source created successfully.'))
+                # Create the query
+                query = query_form.save(commit=False)
+                query.database_datasource = db_settings
+                query.created_by = self.request.user
+                query.modified_by = self.request.user
+                
+                # Set as default query
+                query.is_default = True
+                
+                # Auto-detect query type if not specified
+                if not query.query_type or query.query_type == 'auto':
+                    from core.database.utils import extract_query_type
+                    query.query_type = extract_query_type(query.query_text)
+                
+                query.save()
+                
+                messages.success(self.request, _('Database query data source created successfully.'))
                 return redirect('datasources:database_detail', pk=datasource.pk)
+        else:
+            return self.form_invalid(form)
     
     def form_invalid(self, form):
         messages.error(self.request, _('Please correct the errors below.'))
@@ -193,13 +228,28 @@ class DatabaseTestConnectionView(LoginRequiredMixin, View):
             messages.error(request, _('This is not a database data source.'))
             return redirect('datasources:index')
         
+        self._test_connection(request, datasource)
+        return redirect('datasources:database_detail', pk=pk)
+    
+    def post(self, request, pk):
+        # Add this method to handle POST requests
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'database':
+            messages.error(request, _('This is not a database data source.'))
+            return redirect('datasources:index')
+        
+        self._test_connection(request, datasource)
+        return redirect('datasources:database_detail', pk=pk)
+    
+    def _test_connection(self, request, datasource):
         try:
             # Get or create database settings
             try:
                 db_settings = datasource.database_settings
             except DatabaseDataSource.DoesNotExist:
                 messages.error(request, _('Database settings not found for this data source.'))
-                return redirect('datasources:database_detail', pk=pk)
+                return
             
             # Create connector and test connection
             connector = DatabaseConnector(datasource)
@@ -212,9 +262,6 @@ class DatabaseTestConnectionView(LoginRequiredMixin, View):
             
         except Exception as e:
             messages.error(request, _('Error testing connection: {}').format(str(e)))
-        
-        # Redirect back to detail page
-        return redirect('datasources:database_detail', pk=pk)
 
 
 class DatabaseTableListView(LoginRequiredMixin, View):
@@ -267,6 +314,14 @@ class DatabaseQueryCreateView(LoginRequiredMixin, CreateView):
         
         try:
             context['db_settings'] = context['datasource'].database_settings
+            
+            # Add available tables for reference
+            try:
+                connector = DatabaseConnector(context['datasource'])
+                context['tables'] = connector.get_tables()
+            except Exception as e:
+                context['connection_error'] = str(e)
+                
         except DatabaseDataSource.DoesNotExist:
             messages.error(self.request, _('Database settings not found for this data source.'))
             return redirect('datasources:database_detail', pk=self.kwargs['datasource_pk'])
@@ -283,6 +338,13 @@ class DatabaseQueryCreateView(LoginRequiredMixin, CreateView):
             return redirect('datasources:database_detail', pk=self.kwargs['datasource_pk'])
         
         form.instance.database_datasource = db_settings
+        form.instance.created_by = self.request.user 
+        form.instance.modified_by = self.request.user
+        
+        # Determine query type if not specified
+        if not form.instance.query_type or form.instance.query_type == 'auto':
+            from core.database.utils import extract_query_type
+            form.instance.query_type = extract_query_type(form.instance.query_text)
         
         messages.success(self.request, _('Query created successfully.'))
         return super().form_valid(form)
@@ -303,11 +365,31 @@ class DatabaseQueryUpdateView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['datasource'] = self.object.database_datasource.datasource
         context['db_settings'] = self.object.database_datasource
+        
+        # Add available tables for reference
+        try:
+            from core.database import get_connector
+            connector = get_connector(self.object.database_datasource.get_connection_info())
+            context['tables'] = connector.get_table_names()
+        except Exception as e:
+            context['connection_error'] = str(e)
+            
         return context
+    
+    def form_valid(self, form):
+        # Update the modified_by field
+        form.instance.modified_by = self.request.user
+        
+        # Auto-detect query type if changed to 'auto'
+        if form.instance.query_type == 'auto':
+            from core.database.utils import extract_query_type
+            form.instance.query_type = extract_query_type(form.instance.query_text)
+            
+        messages.success(self.request, _('Query updated successfully.'))
+        return super().form_valid(form)
     
     def get_success_url(self):
         return reverse('datasources:database_detail', kwargs={'pk': self.object.database_datasource.datasource.pk})
-
 
 class DatabaseQueryDeleteView(LoginRequiredMixin, DeleteView):
     """
@@ -343,11 +425,15 @@ class DatabaseQueryExecuteView(LoginRequiredMixin, View):
                     messages.error(request, _('Invalid JSON parameters.'))
                     return redirect('datasources:database_detail', pk=datasource.pk)
             
+            # Use query default parameters if none provided
+            if not params and query.parameters:
+                params = query.parameters
+            
             # Create connector and execute query
             connector = DatabaseConnector(datasource)
             success, results, execution = connector.execute_query(
                 query.query_text,
-                params or query.parameters
+                params
             )
             
             if success:

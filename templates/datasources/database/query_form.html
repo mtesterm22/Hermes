@@ -80,11 +80,44 @@
                     </div>
                 </div>
                 
-                <div class="pt-8">
-                    <div>
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Query Text</h3>
-                        <p class="mt-1 text-sm text-gray-500">Enter the SQL query to execute.</p>
+                <div class="sm:col-span-6">
+                    <label for="{{ form.query_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        SQL Query
+                    </label>
+                    <div class="mt-1 bg-gray-50 rounded-md">
+                        <div class="flex justify-between items-center p-2 bg-gray-100 rounded-t-md border border-gray-300 border-b-0">
+                            <div>
+                                <span class="text-sm font-medium text-gray-700">SQL Editor</span>
+                            </div>
+                            <div>
+                                <!-- Add buttons for SQL helper functions if needed -->
+                                {% if tables %}
+                                <div class="relative inline-block text-left" x-data="{ open: false }">
+                                    <button type="button" @click="open = !open" class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        Tables
+                                        <svg class="-mr-1 ml-1 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+                                        <div class="py-1 max-h-64 overflow-y-auto">
+                                            {% for table in tables %}
+                                            <a href="#" onclick="insertTable('{{ table }}')" class="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">{{ table }}</a>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <textarea id="{{ form.query_text.id_for_label }}" name="{{ form.query_text.name }}" rows="10" class="block w-full border border-gray-300 rounded-b-md shadow-sm p-2 font-mono text-sm focus:ring-blue-500 focus:border-blue-500">{{ form.query_text.value|default_if_none:'' }}</textarea>
                     </div>
+                    {% if form.query_text.errors %}
+                    <p class="mt-2 text-sm text-red-600">
+                        {{ form.query_text.errors|join:", " }}
+                    </p>
+                    {% endif %}
+                </div>
                     
                     <div class="mt-6">
                         <div class="bg-gray-50 p-4 rounded-md mb-4">
@@ -188,25 +221,40 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Automatically format JSON in parameters field when it loses focus
-        const parametersField = document.getElementById('{{ form.parameters.id_for_label }}');
-        if (parametersField) {
-            parametersField.addEventListener('blur', function() {
-                try {
-                    // Try to parse and prettify the JSON
-                    const value = parametersField.value.trim();
-                    if (value) {
-                        const parsed = JSON.parse(value);
-                        parametersField.value = JSON.stringify(parsed, null, 2);
-                    }
-                } catch (e) {
-                    // If it's not valid JSON, leave it as is
-                    console.log('Invalid JSON, not formatting');
-                }
-            });
-        }
-    });
+    // Add helpers for SQL editor
+    function insertTable(tableName) {
+        const textarea = document.getElementById('{{ form.query_text.id_for_label }}');
+        const cursorPos = textarea.selectionStart;
+        const textBefore = textarea.value.substring(0, cursorPos);
+        const textAfter = textarea.value.substring(cursorPos, textarea.value.length);
+        
+        textarea.value = textBefore + tableName + textAfter;
+        textarea.focus();
+        textarea.selectionStart = cursorPos + tableName.length;
+        textarea.selectionEnd = cursorPos + tableName.length;
+        
+        return false; // Prevent default link behavior
+    }
+    
+    // Format SQL button functionality
+    function formatSQL() {
+        const textarea = document.getElementById('{{ form.query_text.id_for_label }}');
+        const sql = textarea.value;
+        
+        // Basic SQL formatting (in a real app you'd want a more robust formatter)
+        const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'UNION', 'INSERT', 'UPDATE', 'DELETE'];
+        
+        let formattedSQL = sql.trim();
+        
+        // Replace keywords with uppercase and newline
+        keywords.forEach(keyword => {
+            const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
+            formattedSQL = formattedSQL.replace(regex, '\n' + keyword);
+        });
+        
+        textarea.value = formattedSQL;
+    }
 </script>
 {% endblock %}

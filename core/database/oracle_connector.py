@@ -1,143 +1,167 @@
 # core/database/oracle_connector.py
 import logging
-import cx_Oracle
-from typing import List, Dict, Any, Tuple, Optional
+import traceback
 
 logger = logging.getLogger(__name__)
 
 class OracleConnector:
-    """
-    Connector for Oracle databases.
-    """
-    
     def __init__(self, connection_info):
-        """
-        Initialize with connection info.
-        
-        Args:
-            connection_info: Dictionary with Oracle connection parameters
-        """
         self.connection_info = connection_info
         self.connection = None
-    
-    def get_connection(self):
-        """
-        Get or create a connection to the Oracle database.
         
-        Returns:
-            Connection object
+        # Log the connection info without sensitive data
+        safe_info = connection_info.copy()
+        if 'password' in safe_info:
+            safe_info['password'] = '******'
+        logger.debug(f"Initializing Oracle connector with: {safe_info}")
+    
+    def connect(self):
         """
-        if self.connection is None or self.connection.closed:
-            # Build DSN string for Oracle
-            host = self.connection_info.get('host', 'localhost')
-            port = self.connection_info.get('port', 1521)
-            service_name = self.connection_info.get('service_name')
-            sid = self.connection_info.get('sid')
-            
-            # Choose between service_name and SID
-            if service_name:
-                dsn = cx_Oracle.makedsn(host, port, service_name=service_name)
-            elif sid:
-                dsn = cx_Oracle.makedsn(host, port, sid=sid)
-            else:
-                # If neither is provided, use the database name as the service name
-                database = self.connection_info.get('database', '')
-                dsn = cx_Oracle.makedsn(host, port, service_name=database)
-            
-            username = self.connection_info.get('user', '')
-            password = self.connection_info.get('password', '')
-            
-            # Additional connection options
-            encoding = self.connection_info.get('encoding', 'UTF-8')
-            
-            # Create the connection
-            self.connection = cx_Oracle.connect(
-                user=username,
-                password=password,
-                dsn=dsn,
-                encoding=encoding
-            )
-            
-            # Configure session
-            cursor = self.connection.cursor()
-            cursor.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'")
+        Establish a connection to the Oracle database.
+        """
+        logger.debug("Connecting to Oracle database...")
+        import cx_Oracle
+        
+        # Get connection parameters
+        host = self.connection_info.get('host')
+        port = self.connection_info.get('port', 1521)
+        service_name = self.connection_info.get('service_name')
+        sid = self.connection_info.get('sid')
+        username = self.connection_info.get('user')
+        password = self.connection_info.get('password')
+        
+        if not password:
+            logger.error("No password provided for Oracle connection")
+            raise ValueError("Password is required for Oracle connections")
+        
+        # Create DSN
+        if service_name:
+            logger.debug(f"Using service_name: {service_name}")
+            dsn = cx_Oracle.makedsn(host, port, service_name=service_name)
+        elif sid:
+            logger.debug(f"Using SID: {sid}")
+            dsn = cx_Oracle.makedsn(host, port, sid=sid)
+        else:
+            logger.error("No service_name or sid provided")
+            raise ValueError("Either service_name or sid must be provided for Oracle connections")
+        
+        logger.debug(f"DSN: {dsn}")
+        
+        # Connect to the database
+        try:
+            self.connection = cx_Oracle.connect(username, password, dsn)
+            logger.debug("Oracle connection established successfully")
+            return self.connection
+        except Exception as e:
+            logger.error(f"Oracle connection failed: {str(e)}")
+            raise
+    
+    def is_connection_closed(self, connection):
+        """Check if an Oracle connection is closed or invalid."""
+        try:
+            # Execute a simple query to test the connection
+            cursor = connection.cursor()
+            cursor.execute("SELECT 1 FROM DUAL")
             cursor.close()
-        
-        return self.connection
+            return False  # Connection is open
+        except Exception:
+            return True  # Connection is closed or has an error
     
-    def close_connection(self):
+    def execute_query(self, query, params=None, timeout=None):
         """
-        Close the connection if it exists.
-        """
-        if self.connection and not self.connection.closed:
-            self.connection.close()
-            self.connection = None
-    
-    def test_connection(self) -> Tuple[bool, str]:
-        """
-        Test the database connection.
+        Execute a SQL query against the Oracle database.
         
+        Args:
+            query: SQL query to execute
+            params: Optional parameters for the query
+            timeout: Optional timeout in seconds
+            
         Returns:
-            Tuple of (success, message)
+            Tuple of (success, results, error_message)
         """
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM DUAL")
-            result = cursor.fetchone()
-            cursor.close()
+            logger.debug(f"Executing Oracle query: {query}")
             
-            if result and result[0] == 1:
-                # Get Oracle version
-                cursor = conn.cursor()
-                cursor.execute("SELECT BANNER FROM V$VERSION WHERE BANNER LIKE 'Oracle%'")
-                version = cursor.fetchone()
-                cursor.close()
-                
-                version_str = version[0] if version else "Unknown"
-                return True, f"Connected successfully to Oracle: {version_str}"
+            # Make sure we have a connection
+            if not hasattr(self, 'connection') or self.connection is None or self.is_connection_closed(self.connection):
+                logger.debug("No active connection, creating new connection")
+                self.connect()
+            
+            cursor = self.connection.cursor()
+            
+            # Set timeout if specified
+            if timeout:
+                cursor.callTimeout = timeout * 1000  # Convert to milliseconds
+            
+            # Execute the query
+            if params:
+                logger.debug(f"With parameters: {params}")
+                cursor.execute(query, params)
             else:
-                return False, "Connection test query returned unexpected result"
+                cursor.execute(query)
+            
+            # For SELECT queries, fetch results
+            if query.strip().upper().startswith('SELECT'):
+                columns = [col[0] for col in cursor.description]
+                results = []
+                
+                for row in cursor:
+                    results.append(dict(zip(columns, row)))
+                
+                logger.debug(f"Query returned {len(results)} rows")
+                cursor.close()
+                return True, results, None
+            else:
+                # For non-SELECT queries, return row count
+                rowcount = cursor.rowcount
+                self.connection.commit()
+                logger.debug(f"Query affected {rowcount} rows")
+                cursor.close()
+                return True, {'rowcount': rowcount}, None
+                
         except Exception as e:
-            return False, f"Error connecting to Oracle: {str(e)}"
+            error_message = f"Error executing Oracle query: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_message)
+            return False, None, error_message
     
-    def get_table_names(self) -> List[str]:
+    def get_table_names(self):
         """
-        Get a list of table names in the database schema.
+        Get a list of table names in the database.
         
         Returns:
             List of table names
         """
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            logger.debug("Getting Oracle table names")
             
-            # Get the schema to use (if provided)
-            schema = self.connection_info.get('schema', '').upper()
+            schema = self.connection_info.get('schema')
             if not schema:
-                # Use the user's schema by default
-                schema = self.connection_info.get('user', '').upper()
+                schema = self.connection_info.get('user').upper()
             
-            # Query for tables in the schema
             query = """
-            SELECT TABLE_NAME 
-            FROM ALL_TABLES 
-            WHERE OWNER = :schema
-            ORDER BY TABLE_NAME
+                SELECT TABLE_NAME 
+                FROM ALL_TABLES 
+                WHERE OWNER = :schema
+                ORDER BY TABLE_NAME
             """
             
-            cursor.execute(query, schema=schema)
-            tables = [row[0] for row in cursor.fetchall()]
-            cursor.close()
+            success, results, error = self.execute_query(query, {'schema': schema})
             
-            return tables
+            if success and results:
+                table_names = [row['TABLE_NAME'] for row in results]
+                logger.debug(f"Found {len(table_names)} tables")
+                return table_names
+            else:
+                logger.error(f"Failed to get table names: {error}")
+                return []
+                
         except Exception as e:
             logger.error(f"Error getting table names: {str(e)}")
             return []
     
-    def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
+    def get_table_schema(self, table_name):
         """
-        Get schema information for a database table.
+        Get schema information for a table.
         
         Args:
             table_name: Name of the table
@@ -146,111 +170,81 @@ class OracleConnector:
             List of column definitions
         """
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            logger.debug(f"Getting schema for table: {table_name}")
             
-            # Get the schema to use (if provided)
-            schema = self.connection_info.get('schema', '').upper()
+            schema = self.connection_info.get('schema')
             if not schema:
-                # Use the user's schema by default
-                schema = self.connection_info.get('user', '').upper()
+                schema = self.connection_info.get('user').upper()
             
-            # Query for column information
             query = """
-            SELECT 
-                COLUMN_NAME, 
-                DATA_TYPE,
-                DATA_LENGTH,
-                NULLABLE,
-                DATA_DEFAULT
-            FROM ALL_TAB_COLUMNS
-            WHERE OWNER = :schema
-            AND TABLE_NAME = :table_name
-            ORDER BY COLUMN_ID
+                SELECT 
+                    COLUMN_NAME as name, 
+                    DATA_TYPE as data_type,
+                    DATA_LENGTH as length,
+                    DATA_PRECISION as precision,
+                    DATA_SCALE as scale,
+                    NULLABLE as is_nullable,
+                    DATA_DEFAULT as default
+                FROM ALL_TAB_COLUMNS
+                WHERE OWNER = :schema
+                AND TABLE_NAME = :table_name
+                ORDER BY COLUMN_ID
             """
             
-            cursor.execute(query, schema=schema, table_name=table_name.upper())
+            success, results, error = self.execute_query(
+                query, 
+                {'schema': schema, 'table_name': table_name}
+            )
             
-            columns = []
-            for row in cursor.fetchall():
-                column = {
-                    'name': row[0],
-                    'data_type': row[1],
-                    'data_length': row[2],
-                    'is_nullable': row[3] == 'Y',
-                    'default': row[4] if row[4] else None
-                }
-                columns.append(column)
-            
-            cursor.close()
-            return columns
+            if success and results:
+                # Convert is_nullable from 'Y'/'N' to boolean
+                for col in results:
+                    col['is_nullable'] = (col['IS_NULLABLE'] == 'Y')
+                
+                logger.debug(f"Found {len(results)} columns for table {table_name}")
+                return results
+            else:
+                logger.error(f"Failed to get table schema: {error}")
+                return []
+                
         except Exception as e:
             logger.error(f"Error getting table schema: {str(e)}")
             return []
     
-    def execute_query(self, query: str, params: Optional[Dict[str, Any]] = None, 
-                     timeout: int = 60) -> Tuple[bool, Any, Optional[str]]:
+    def test_connection(self):
         """
-        Execute a SQL query with optional parameters.
+        Test the connection to the Oracle database.
         
-        Args:
-            query: SQL query to execute
-            params: Optional parameters for the query
-            timeout: Query timeout in seconds
-            
         Returns:
-            Tuple of (success, results, error_message)
+            Tuple of (success, message)
         """
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            logger.debug("Testing Oracle connection")
             
-            # Set array size for better performance with large result sets
-            cursor.arraysize = 1000
+            # First ensure we have a connection
+            if not hasattr(self, 'connection') or self.connection is None or self.is_connection_closed(self.connection):
+                self.connect()
             
-            # Convert dict params to bind variables
-            bind_params = {}
-            if params:
-                for key, value in params.items():
-                    # Oracle uses :param format
-                    bind_params[key] = value
+            # Execute a simple query
+            success, results, error = self.execute_query("SELECT 1 FROM DUAL")
             
-            # Execute the query
-            if bind_params:
-                cursor.execute(query, bind_params)
+            if success:
+                return True, "Connection successful"
             else:
-                cursor.execute(query)
-            
-            # Determine query type from the first word
-            query_type = query.strip().split(' ')[0].upper()
-            
-            # Handle based on query type
-            if query_type in ['SELECT']:
-                # For SELECT, return the rows as a list of dicts
-                columns = [col[0] for col in cursor.description]
-                rows = []
+                return False, f"Connection test failed: {error}"
                 
-                for row in cursor:
-                    rows.append(dict(zip(columns, row)))
-                
-                cursor.close()
-                return True, rows, None
-            else:
-                # For other queries, return row count
-                affected = cursor.rowcount
-                conn.commit()
-                cursor.close()
-                return True, {'rowcount': affected}, None
-        
         except Exception as e:
-            # Log the error for debugging
-            logger.error(f"Error executing Oracle query: {str(e)}")
-            
-            # Attempt to get specific Oracle error information
-            error_message = str(e)
-            
-            # If a cursor was created, close it
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-            
-            return False, None, error_message
+            logger.error(f"Error testing connection: {str(e)}")
+            return False, str(e)
+    
+    def close(self):
+        """
+        Close the database connection.
+        """
+        try:
+            if hasattr(self, 'connection') and self.connection is not None:
+                self.connection.close()
+                self.connection = None
+                logger.debug("Oracle connection closed")
+        except Exception as e:
+            logger.error(f"Error closing connection: {str(e)}")

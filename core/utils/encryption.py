@@ -90,51 +90,54 @@ def decrypt_value(encrypted_value):
         logger.error(f"Error decrypting value: {str(e)}")
         return None
 
-def encrypt_credentials(credentials):
+def encrypt_credentials(credentials_dict):
     """
-    Encrypt a credentials dictionary.
+    Encrypt credentials using Fernet symmetric encryption.
     
     Args:
-        credentials: Dictionary of credentials
+        credentials_dict: Dictionary containing credentials to encrypt
         
     Returns:
-        Encrypted credentials as a string
+        Encrypted string
     """
-    if not credentials:
-        return None
-        
-    try:
-        # Convert credentials to JSON string
-        json_str = json.dumps(credentials)
-        
-        # Encrypt the JSON string
-        return encrypt_value(json_str)
-    except Exception as e:
-        logger.error(f"Error encrypting credentials: {str(e)}")
-        return None
+    from cryptography.fernet import Fernet
+    from django.conf import settings
+    
+    key = settings.ENCRYPTION_KEY
+    f = Fernet(key)
+    
+    # Convert dict to string
+    credentials_str = json.dumps(credentials_dict)
+    
+    # Encrypt the string
+    encrypted = f.encrypt(credentials_str.encode())
+    
+    return encrypted.decode()
 
-def decrypt_credentials(encrypted_credentials):
+def decrypt_credentials(encrypted_str):
     """
-    Decrypt credentials.
+    Decrypt credentials using Fernet symmetric encryption.
     
     Args:
-        encrypted_credentials: Encrypted credentials as a string
+        encrypted_str: Encrypted string to decrypt
         
     Returns:
-        Dictionary of decrypted credentials
+        Dictionary containing decrypted credentials
     """
-    if not encrypted_credentials:
-        return {}
-        
+    from cryptography.fernet import Fernet
+    from django.conf import settings
+    
     try:
-        # Decrypt the credentials
-        json_str = decrypt_value(encrypted_credentials)
+        key = settings.ENCRYPTION_KEY
+        f = Fernet(key)
         
-        if not json_str:
-            return {}
-            
-        # Parse the JSON string
-        return json.loads(json_str)
-    except (json.JSONDecodeError, Exception) as e:
-        logger.error(f"Error decrypting credentials: {str(e)}")
+        # Decrypt the string
+        decrypted = f.decrypt(encrypted_str.encode())
+        
+        # Convert string back to dict
+        credentials_dict = json.loads(decrypted.decode())
+        
+        return credentials_dict
+    except Exception as e:
+        print(f"Error decrypting value: {str(e)}")
         return {}
