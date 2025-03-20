@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.db import transaction
 
 from .connection_models import DatabaseConnection
-from .forms import DatabaseConnectionForm, DatabaseDataSourceForm
+from .forms import DatabaseConnectionForm, DatabaseDataSourceForm, DatabaseDataSource, DataSource
 from core.database import get_connector
 
 class ConnectionListView(LoginRequiredMixin, ListView):
