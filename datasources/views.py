@@ -7,6 +7,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.utils.translation import gettext_lazy as _
 
 from .models import DataSource, DataSourceField, DataSourceSync
+from .forms import DatabaseDataSourceForm
 
 # DataSource views
 class DataSourceListView(LoginRequiredMixin, ListView):
@@ -215,3 +216,4 @@ class DataSourceTypeSelectView(LoginRequiredMixin, TemplateView):
     View for selecting the type of data source to create
     """
     template_name = 'datasources/select_type.html'
+

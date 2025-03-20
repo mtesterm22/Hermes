@@ -182,6 +182,16 @@ class DatabaseDataSourceForm(forms.ModelForm):
     """
     Form for creating/editing a database data source.
     """
+    create_new_connection = forms.BooleanField(
+        label=_("Create new database connection"),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded',
+            'data-toggle': 'connection-form'
+        })
+    )
+    
     class Meta:
         model = DatabaseDataSource
         fields = ['connection', 'query_timeout', 'max_rows']
@@ -191,9 +201,15 @@ class DatabaseDataSourceForm(forms.ModelForm):
         
         # Limit connections to active ones
         self.fields['connection'].queryset = DatabaseConnection.objects.all().order_by('name')
+        self.fields['connection'].widget.attrs.update({
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
         
         # Apply Tailwind classes
         for field_name, field in self.fields.items():
+            if isinstance(field.widget, forms.CheckboxInput):
+                continue  # Skip checkboxes, they have custom styling
+                
             css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
             field.widget.attrs.update({'class': css_class})
 

@@ -25,7 +25,6 @@ from .connectors.database_connector import DatabaseConnector
 
 logger = logging.getLogger(__name__)
 
-# Update datasources/database_views.py
 class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
     """
     View for creating a new database data source
@@ -35,38 +34,43 @@ class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        if self.request.POST:
-            context['base_form'] = DataSourceBaseForm(self.request.POST, prefix='base')
-        else:
-            context['base_form'] = DataSourceBaseForm(prefix='base')
-            
         # Get available connections
-        context['connections'] = DatabaseConnection.objects.all()
-        
+        context['connections'] = DatabaseConnection.objects.all().order_by('name')
         return context
     
     def form_valid(self, form):
-        context = self.get_context_data()
-        base_form = context['base_form']
-        
-        if base_form.is_valid():
-            with transaction.atomic():
-                # Save the base data source
-                datasource = base_form.save(commit=False)
-                datasource.type = 'database'
-                datasource.created_by = self.request.user
-                datasource.modified_by = self.request.user
-                datasource.save()
+        with transaction.atomic():
+            # Create the base DataSource
+            datasource = DataSource(
+                name=self.request.POST.get('name', ''),
+                description=self.request.POST.get('description', ''),
+                type='database',
+                status=self.request.POST.get('status', 'active'),
+                created_by=self.request.user,
+                modified_by=self.request.user
+            )
+            datasource.save()
+            
+            # Handle connection
+            create_new = form.cleaned_data.get('create_new_connection', False)
+            
+            if create_new:
+                # Redirect to connection creation page with return URL
+                messages.info(self.request, _('Please create a new database connection first.'))
+                return redirect(reverse('datasources:connection_create') + f'?return_to=datasource&datasource_id={datasource.id}')
                 
-                # Save the database settings
+            else:
+                # Save the database settings with existing connection
                 db_settings = form.save(commit=False)
                 db_settings.datasource = datasource
                 db_settings.save()
                 
                 messages.success(self.request, _('Database data source created successfully.'))
                 return redirect('datasources:database_detail', pk=datasource.pk)
-        else:
-            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, _('Please correct the errors below.'))
+        return super().form_invalid(form)
 
 
 class DatabaseDataSourceUpdateView(LoginRequiredMixin, UpdateView):

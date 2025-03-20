@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.db import transaction
 
 from .connection_models import DatabaseConnection
-from .forms import DatabaseConnectionForm
+from .forms import DatabaseConnectionForm, DatabaseDataSourceForm
 from core.database import get_connector
 
 class ConnectionListView(LoginRequiredMixin, ListView):
@@ -47,6 +47,13 @@ class ConnectionCreateView(LoginRequiredMixin, CreateView):
     form_class = DatabaseConnectionForm
     template_name = 'datasources/connections/form.html'
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Check if we're returning to a data source
+        context['return_to_datasource'] = self.request.GET.get('return_to') == 'datasource'
+        context['datasource_id'] = self.request.GET.get('datasource_id')
+        return context
+    
     def form_valid(self, form):
         with transaction.atomic():
             # Save the connection
@@ -57,10 +64,26 @@ class ConnectionCreateView(LoginRequiredMixin, CreateView):
             
             messages.success(self.request, _('Database connection created successfully.'))
             
-            # Test connection if requested
-            if 'test_connection' in self.request.POST:
-                return redirect('datasources:connection_test', pk=connection.pk)
+            # Check if we need to return to a data source
+            if self.request.GET.get('return_to') == 'datasource':
+                datasource_id = self.request.GET.get('datasource_id')
+                if datasource_id:
+                    try:
+                        datasource = DataSource.objects.get(id=datasource_id)
+                        # Create database settings for the datasource
+                        db_settings = DatabaseDataSource(
+                            datasource=datasource,
+                            connection=connection,
+                            query_timeout=connection.query_timeout,
+                            max_rows=connection.max_rows
+                        )
+                        db_settings.save()
+                        
+                        return redirect('datasources:database_detail', pk=datasource_id)
+                    except DataSource.DoesNotExist:
+                        pass
             
+            # Otherwise go to connection detail
             return redirect('datasources:connection_detail', pk=connection.pk)
 
 class ConnectionUpdateView(LoginRequiredMixin, UpdateView):
