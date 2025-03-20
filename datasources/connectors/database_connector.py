@@ -434,3 +434,68 @@ class DatabaseConnector:
             self.datasource.save(update_fields=['status'])
             
             raise
+
+def execute_oracle_query(self, query_text, params=None):
+    """
+    Execute an Oracle-specific query with special handling for certain operations.
+    
+    Args:
+        query_text: SQL query to execute
+        params: Optional parameters for the query
+        
+    Returns:
+        Tuple of (success, results, execution_record)
+    """
+    if self.db_settings.connection.db_type != 'oracle':
+        return False, None, "Not an Oracle connection"
+    
+    # Create an execution record
+    execution_record = DatabaseQueryExecution.objects.create(
+        database_datasource=self.db_settings,
+        query_text=query_text,
+        parameters=params or {},
+        status='running'
+    )
+    
+    try:
+        connector = self._get_connector()
+        
+        # Execute the query
+        success, results, error = connector.execute_query(
+            query_text, 
+            params,
+            timeout=self.db_settings.query_timeout
+        )
+        
+        # Update execution record
+        if success:
+            # Determine rows affected
+            if isinstance(results, dict) and 'rowcount' in results:
+                rows_affected = results['rowcount']
+            elif isinstance(results, list):
+                rows_affected = len(results)
+            else:
+                rows_affected = 0
+            
+            execution_record.complete(
+                status='completed',
+                rows_affected=rows_affected
+            )
+        else:
+            execution_record.complete(
+                status='failed',
+                error_message=error
+            )
+        
+        return success, results, execution_record
+    
+    except Exception as e:
+        error_message = f"Error executing Oracle query: {str(e)}"
+        logger.error(error_message)
+        
+        execution_record.complete(
+            status='failed',
+            error_message=error_message
+        )
+        
+        return False, None, execution_record

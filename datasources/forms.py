@@ -124,7 +124,8 @@ class DatabaseConnectionForm(forms.ModelForm):
         model = DatabaseConnection
         fields = [
             'name', 'description', 'db_type', 'host', 'port', 'database_name', 
-            'schema', 'username', 'use_ssl', 'ssl_cert_path', 'connection_timeout',
+            'schema', 'username', 'oracle_service_name', 'oracle_sid',
+            'use_ssl', 'ssl_cert_path', 'connection_timeout',
             'query_timeout', 'max_rows', 'fetch_size'
         ]
         widgets = {
@@ -144,6 +145,11 @@ class DatabaseConnectionForm(forms.ModelForm):
                 css_class = 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
             
             field.widget.attrs.update({'class': css_class})
+            
+        # Initially hide Oracle-specific fields
+        if not self.instance or self.instance.db_type != 'oracle':
+            self.fields['oracle_service_name'].widget.attrs.update({'class': 'hidden'})
+            self.fields['oracle_sid'].widget.attrs.update({'class': 'hidden'})
     
     def get_default_port(self, db_type):
         """Get the default port for a database type."""

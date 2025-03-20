@@ -31,6 +31,11 @@ class DatabaseConnection(models.Model):
     schema = models.CharField(_('Schema'), max_length=255, blank=True)
     username = models.CharField(_('Username'), max_length=255, blank=True)
     credentials = models.JSONField(_('Credentials'), default=dict, blank=True, null=True)
+
+    oracle_service_name = models.CharField(_('Oracle Service Name'), max_length=255, blank=True,
+                                        help_text=_('Service name for Oracle connection'))
+    oracle_sid = models.CharField(_('Oracle SID'), max_length=255, blank=True,
+                               help_text=_('System identifier for Oracle connection'))
     
     # Connection options
     use_ssl = models.BooleanField(_('Use SSL'), default=False)
@@ -89,6 +94,13 @@ class DatabaseConnection(models.Model):
             # Fall back to direct password storage (legacy support)
             elif 'password' in self.credentials:
                 connection_info['password'] = self.credentials.get('password')
+        
+        # Add Oracle-specific parameters
+        if self.db_type == 'oracle':
+            if self.oracle_service_name:
+                connection_info['service_name'] = self.oracle_service_name
+            if self.oracle_sid:
+                connection_info['sid'] = self.oracle_sid
         
         # Add SSL settings if enabled
         if self.use_ssl:

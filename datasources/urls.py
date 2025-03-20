@@ -72,4 +72,6 @@ urlpatterns = [
     path('connections/<int:pk>/delete/', connection_views.ConnectionDeleteView.as_view(), name='connection_delete'),
     path('connections/<int:pk>/test/', connection_views.ConnectionTestView.as_view(), name='connection_test'),
     path('connections/<int:pk>/tables/', connection_views.ConnectionTablesView.as_view(), name='connection_tables'),
+    path('oracle/templates/', database_views.OracleHelperView.as_view(), name='oracle_templates'),
+    path('connections/<int:pk>/test-oracle/', connection_views.TestOracleConnectionView.as_view(), name='test_oracle_connection'),
 ]

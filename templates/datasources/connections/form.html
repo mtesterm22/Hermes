@@ -131,6 +131,60 @@
                             </p>
                             {% endif %}
                         </div>
+
+                        {# templates/datasources/connections/form.html - add inside the existing form #}
+
+<!-- Oracle-specific fields -->
+<div id="oracle-fields" class="sm:col-span-6 {% if form.instance.db_type != 'oracle' %}hidden{% endif %}">
+    <div class="bg-blue-50 p-4 rounded-md mb-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-3 text-sm text-blue-700">
+                <p>
+                    For Oracle connections, you need to provide either a Service Name or SID.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="sm:col-span-3">
+        <label for="{{ form.oracle_service_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Oracle Service Name
+        </label>
+        <div class="mt-1">
+            {{ form.oracle_service_name }}
+        </div>
+        <p class="mt-1 text-sm text-gray-500">
+            The service name for the Oracle database (preferred over SID).
+        </p>
+        {% if form.oracle_service_name.errors %}
+        <p class="mt-2 text-sm text-red-600">
+            {{ form.oracle_service_name.errors|join:", " }}
+        </p>
+        {% endif %}
+    </div>
+
+    <div class="sm:col-span-3">
+        <label for="{{ form.oracle_sid.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Oracle SID
+        </label>
+        <div class="mt-1">
+            {{ form.oracle_sid }}
+        </div>
+        <p class="mt-1 text-sm text-gray-500">
+            The System Identifier for the Oracle database (use only if Service Name not available).
+        </p>
+        {% if form.oracle_sid.errors %}
+        <p class="mt-2 text-sm text-red-600">
+            {{ form.oracle_sid.errors|join:", " }}
+        </p>
+        {% endif %}
+    </div>
+</div>
                         
                         <!-- Schema field -->
                         <div class="sm:col-span-3">
@@ -382,6 +436,21 @@
         if (sslCheckbox && sslCertPathContainer) {
             sslCheckbox.addEventListener('change', updateSslCertVisibility);
             updateSslCertVisibility(); // Set initial state
+        }
+        // Toggle Oracle fields when database type changes
+        const oracleFields = document.getElementById('oracle-fields');
+        
+        function updateOracleFields() {
+            if (dbTypeSelect.value === 'oracle') {
+                oracleFields.classList.remove('hidden');
+            } else {
+                oracleFields.classList.add('hidden');
+            }
+        }
+        
+        if (dbTypeSelect && oracleFields) {
+            dbTypeSelect.addEventListener('change', updateOracleFields);
+            updateOracleFields(); // Initial state
         }
     });
 </script>

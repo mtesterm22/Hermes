@@ -499,3 +499,47 @@ class DatabaseFieldsUpdateView(LoginRequiredMixin, View):
             'datasource': datasource,
             'formset': formset
         })
+
+class OracleHelperView(LoginRequiredMixin, View):
+    """
+    View to provide Oracle-specific query templates
+    """
+    def get(self, request):
+        templates = {
+            "table_list": """
+SELECT OWNER, TABLE_NAME 
+FROM ALL_TABLES 
+WHERE OWNER = :schema
+ORDER BY TABLE_NAME
+            """,
+            "column_list": """
+SELECT 
+    COLUMN_NAME, 
+    DATA_TYPE,
+    DATA_LENGTH,
+    NULLABLE
+FROM ALL_TAB_COLUMNS
+WHERE OWNER = :schema
+AND TABLE_NAME = :table_name
+ORDER BY COLUMN_ID
+            """,
+            "user_info": """
+SELECT 
+    USERNAME, 
+    CREATED,
+    PROFILE,
+    ACCOUNT_STATUS
+FROM DBA_USERS
+WHERE USERNAME LIKE :username_pattern
+            """,
+            "basic_selection": """
+SELECT * FROM :table_name
+WHERE ROWNUM <= 100
+            """
+        }
+        
+        template_name = request.GET.get('template', '')
+        if template_name in templates:
+            return JsonResponse({'query': templates[template_name]})
+        else:
+            return JsonResponse({'templates': list(templates.keys())})

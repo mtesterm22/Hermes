@@ -1,4 +1,3 @@
-# Create a new file: datasources/connection_views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
@@ -175,3 +174,38 @@ class ConnectionTablesView(LoginRequiredMixin, View):
             return JsonResponse({'tables': tables})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+class TestOracleConnectionView(LoginRequiredMixin, View):
+    """
+    View for testing Oracle connections specifically
+    """
+    def get(self, request, pk):
+        connection = get_object_or_404(DatabaseConnection, pk=pk)
+        
+        # Only for Oracle connections
+        if connection.db_type != 'oracle':
+            messages.error(request, _('This is not an Oracle connection.'))
+            return redirect('datasources:connection_detail', pk=pk)
+        
+        try:
+            # Test the connection
+            connection_info = connection.get_connection_info()
+            from core.database.oracle_connector import OracleConnector
+            connector = OracleConnector(connection_info)
+            success, message = connector.test_connection()
+            
+            if success:
+                # Get table count as an additional test
+                tables = connector.get_table_names()
+                table_count = len(tables)
+                messages.success(request, _(
+                    'Oracle connection test successful: {message}. Found {count} tables.'
+                ).format(message=message, count=table_count))
+            else:
+                messages.error(request, _('Oracle connection test failed: {message}').format(message=message))
+        
+        except Exception as e:
+            messages.error(request, _('Error testing Oracle connection: {error}').format(error=str(e)))
+        
+        # Redirect back to detail page
+        return redirect('datasources:connection_detail', pk=pk)
