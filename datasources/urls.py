@@ -4,6 +4,7 @@ from . import views
 from . import csv_views
 from . import profile_views 
 from . import database_views
+from . import connection_views
 
 app_name = 'datasources'
 
@@ -62,4 +63,13 @@ urlpatterns = [
     path('database/queries/<int:pk>/delete/', database_views.DatabaseQueryDeleteView.as_view(), name='database_query_delete'),
     path('database/queries/<int:pk>/execute/', database_views.DatabaseQueryExecuteView.as_view(), name='database_query_execute'),
     path('database/executions/<int:pk>/', database_views.DatabaseQueryExecutionDetailView.as_view(), name='database_execution_detail'),
+
+    # Database Connections
+    path('connections/', connection_views.ConnectionListView.as_view(), name='connections'),
+    path('connections/create/', connection_views.ConnectionCreateView.as_view(), name='connection_create'),
+    path('connections/<int:pk>/', connection_views.ConnectionDetailView.as_view(), name='connection_detail'),
+    path('connections/<int:pk>/update/', connection_views.ConnectionUpdateView.as_view(), name='connection_update'),
+    path('connections/<int:pk>/delete/', connection_views.ConnectionDeleteView.as_view(), name='connection_delete'),
+    path('connections/<int:pk>/test/', connection_views.ConnectionTestView.as_view(), name='connection_test'),
+    path('connections/<int:pk>/tables/', connection_views.ConnectionTablesView.as_view(), name='connection_tables'),
 ]

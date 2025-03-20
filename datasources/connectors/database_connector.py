@@ -50,6 +50,7 @@ class DatabaseConnector:
             Database connector instance
         """
         if self._connector is None:
+            # Get connection info from the linked database connection
             connection_info = self.db_settings.get_connection_info()
             self._connector = get_connector(connection_info)
             
@@ -57,6 +58,7 @@ class DatabaseConnector:
                 raise ValueError(f"Unsupported database type: {connection_info.get('type')}")
         
         return self._connector
+    
     
     def test_connection(self) -> Tuple[bool, str]:
         """
@@ -363,11 +365,11 @@ class DatabaseConnector:
         )
         
         try:
-            # Get saved queries
+            # Get saved queries with preference for default query
             queries = DatabaseQuery.objects.filter(
                 database_datasource=self.db_settings,
                 is_enabled=True
-            )
+            ).order_by('-is_default', 'name')
             
             if not queries.exists():
                 self.sync.complete(

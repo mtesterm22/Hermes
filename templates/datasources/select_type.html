@@ -1,4 +1,4 @@
-{# templates/datasources/select_type.html #}
+{# templates/datasources/select_type.html - updated version #}
 {% extends "base.html" %}
 {% load static %}
 
@@ -44,8 +44,8 @@
                 </div>
             </div>
             
-            <!-- Database Data Source (for future implementation) -->
-            <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 opacity-50">
+            <!-- Database Query Data Source -->
+            <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
                 <div class="flex-shrink-0">
                     <div class="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center">
                         <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,10 +54,28 @@
                     </div>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <a href="#" class="focus:outline-none">
+                    <a href="{% url 'datasources:database_create' %}" class="focus:outline-none">
                         <span class="absolute inset-0" aria-hidden="true"></span>
-                        <p class="text-sm font-medium text-gray-900">Database</p>
-                        <p class="text-sm text-gray-500">Connect to a SQL database. (Coming soon)</p>
+                        <p class="text-sm font-medium text-gray-900">Database Query</p>
+                        <p class="text-sm text-gray-500">Create data source from database queries.</p>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Database Connection (separate from data source) -->
+            <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                <div class="flex-shrink-0">
+                    <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <a href="{% url 'datasources:connection_create' %}" class="focus:outline-none">
+                        <span class="absolute inset-0" aria-hidden="true"></span>
+                        <p class="text-sm font-medium text-gray-900">Database Connection</p>
+                        <p class="text-sm text-gray-500">Create reusable database connection.</p>
                     </a>
                 </div>
             </div>
@@ -133,6 +151,28 @@
                     </a>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Connections Guide -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Working with Database Queries</h3>
+        <p class="mt-1 text-sm text-gray-500">How to create and use database queries in Hermes</p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="prose max-w-none">
+            <p>To create database queries as data sources, follow these steps:</p>
+            
+            <ol>
+                <li><strong>Create a Database Connection</strong> - First, create a reusable connection to your database.</li>
+                <li><strong>Create a Database Query Data Source</strong> - Then create a data source that uses the connection.</li>
+                <li><strong>Add Queries</strong> - Define the SQL queries you want to run on the database.</li>
+                <li><strong>Configure Integration</strong> - Set up how query results integrate with user profiles.</li>
+            </ol>
+            
+            <p>This separation allows you to reuse the same database connection across multiple data sources, while keeping each data source focused on specific queries and integration points.</p>
         </div>
     </div>
 </div>

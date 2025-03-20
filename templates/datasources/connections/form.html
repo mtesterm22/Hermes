@@ -1,0 +1,168 @@
+{# templates/datasources/form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Data Source{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Data Source
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:index' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Sources
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Provide general information about the data source.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Type field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Type
+                            </label>
+                            <div class="mt-1">
+                                {{ form.type }}
+                            </div>
+                            {% if form.type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Status field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Status
+                            </label>
+                            <div class="mt-1">
+                                {{ form.status }}
+                            </div>
+                            {% if form.status.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.status.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Connection String field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.connection_string.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Connection String
+                            </label>
+                            <div class="mt-1">
+                                {{ form.connection_string }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">Optional connection string for this data source.</p>
+                            {% if form.connection_string.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.connection_string.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Credentials field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.credentials.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Credentials (JSON)
+                            </label>
+                            <div class="mt-1">
+                                {{ form.credentials }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">Optional JSON credentials for this data source.</p>
+                            {% if form.credentials.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.credentials.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:index' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if form.instance.pk %}Save{% else %}Create{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Automatically format JSON in credentials field when it loses focus
+        const credentialsField = document.getElementById('{{ form.credentials.id_for_label }}');
+        if (credentialsField) {
+            credentialsField.addEventListener('blur', function() {
+                try {
+                    // Try to parse and prettify the JSON
+                    const value = credentialsField.value.trim();
+                    if (value) {
+                        const parsed = JSON.parse(value);
+                        credentialsField.value = JSON.stringify(parsed, null, 2);
+                    }
+                } catch (e) {
+                    // If it's not valid JSON, leave it as is
+                    console.log('Invalid JSON, not formatting');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

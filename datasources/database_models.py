@@ -1,8 +1,9 @@
+# Update datasources/database_models.py
 """
 Database data source models for Hermes.
 
-This module defines models for database data sources, similar to
-the CSV data source models but for database connections.
+This module defines models for database data sources, with a focus
+on queries that can use shared database connections.
 """
 
 from django.db import models
@@ -11,8 +12,7 @@ from django.utils import timezone
 import logging
 
 from .models import DataSource
-
-from core.utils.encryption import encrypt_credentials, decrypt_credentials
+from .connection_models import DatabaseConnection
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +20,6 @@ class DatabaseDataSource(models.Model):
     """
     Extension model for database-specific data source settings.
     """
-    DATABASE_TYPE_CHOICES = [
-        ('postgresql', _('PostgreSQL')),
-        ('mysql', _('MySQL')),
-        ('oracle', _('Oracle')),
-        ('sqlserver', _('SQL Server')),
-        ('sqlite', _('SQLite')),
-        ('other', _('Other')),
-    ]
-    
     datasource = models.OneToOneField(
         DataSource,
         on_delete=models.CASCADE,
@@ -36,31 +27,16 @@ class DatabaseDataSource(models.Model):
         related_name='database_settings'
     )
     
-    # Database configuration
-    db_type = models.CharField(
-        _('Database Type'),
-        max_length=20,
-        choices=DATABASE_TYPE_CHOICES,
-        default='postgresql'
+    # Database connection (reusable)
+    connection = models.ForeignKey(
+        DatabaseConnection,
+        on_delete=models.PROTECT,  # Don't allow deletion if referenced
+        related_name='data_sources'
     )
-    host = models.CharField(_('Host'), max_length=255, blank=True)
-    port = models.IntegerField(_('Port'), blank=True, null=True)
-    database_name = models.CharField(_('Database Name'), max_length=255, blank=True)
-    schema = models.CharField(_('Schema'), max_length=255, blank=True)
-    username = models.CharField(_('Username'), max_length=255, blank=True)
     
-    # We don't store passwords directly in the model
-    # Instead, use the encrypted credentials field on the parent DataSource
-    
-    # Connection options
-    use_ssl = models.BooleanField(_('Use SSL'), default=False)
-    ssl_cert_path = models.CharField(_('SSL Certificate Path'), max_length=255, blank=True)
-    connection_timeout = models.IntegerField(_('Connection Timeout (s)'), default=30)
-    
-    # Query execution settings
+    # Query execution settings (can override connection defaults)
     query_timeout = models.IntegerField(_('Query Timeout (s)'), default=60)
     max_rows = models.IntegerField(_('Maximum Rows'), default=10000)
-    fetch_size = models.IntegerField(_('Fetch Size'), default=1000)
     
     class Meta:
         verbose_name = _('Database Data Source')
@@ -71,40 +47,12 @@ class DatabaseDataSource(models.Model):
     
     def get_connection_info(self):
         """
-        Get the connection information dictionary for this database source.
+        Get the connection information from the linked connection.
         
         Returns:
             Dictionary with connection parameters
         """
-        connection_info = {
-            'type': self.db_type,
-            'host': self.host,
-            'port': self.port,
-            'database': self.database_name,
-            'schema': self.schema,
-            'user': self.username,
-        }
-        
-        # Add password from credentials if available
-        if self.datasource.credentials:
-            # Check for encrypted credentials
-            if 'encrypted_credentials' in self.datasource.credentials:
-                encrypted_creds = self.datasource.credentials.get('encrypted_credentials')
-                decrypted_creds = decrypt_credentials(encrypted_creds)
-                if decrypted_creds and 'password' in decrypted_creds:
-                    connection_info['password'] = decrypted_creds['password']
-            # Fall back to direct password storage (legacy support)
-            elif 'password' in self.datasource.credentials:
-                connection_info['password'] = self.datasource.credentials.get('password')
-        
-        # Add SSL settings if enabled
-        if self.use_ssl:
-            connection_info['ssl'] = True
-            
-            if self.ssl_cert_path:
-                connection_info['ssl_cert'] = self.ssl_cert_path
-        
-        return connection_info
+        return self.connection.get_connection_info()
 
 
 class DatabaseQuery(models.Model):
@@ -116,6 +64,7 @@ class DatabaseQuery(models.Model):
         ('insert', _('INSERT')),
         ('update', _('UPDATE')),
         ('delete', _('DELETE')),
+        ('proc', _('Stored Procedure')),
         ('other', _('Other')),
     ]
     
@@ -135,15 +84,26 @@ class DatabaseQuery(models.Model):
     )
     parameters = models.JSONField(_('Parameters'), default=dict, blank=True)
     is_enabled = models.BooleanField(_('Enabled'), default=True)
+    is_default = models.BooleanField(_('Default Query'), default=False, 
+                                    help_text=_('This query will be used as the default for syncing'))
     
     # Audit fields
+    created_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True,
+        related_name='created_queries'
+    )
     created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+    modified_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True,
+        related_name='modified_queries'
+    )
     modified_at = models.DateTimeField(_('Modified At'), auto_now=True)
     
     class Meta:
         verbose_name = _('Database Query')
         verbose_name_plural = _('Database Queries')
-        ordering = ['name']
+        ordering = ['-is_default', 'name']
+        unique_together = [('database_datasource', 'name')]
     
     def __str__(self):
         return f"{self.name} ({self.database_datasource.datasource.name})"
@@ -186,6 +146,15 @@ class DatabaseQueryExecution(models.Model):
     duration_ms = models.IntegerField(_('Duration (ms)'), null=True, blank=True)
     rows_affected = models.IntegerField(_('Rows Affected'), null=True, blank=True)
     error_message = models.TextField(_('Error Message'), blank=True)
+    
+    # Add reference to workflow execution if part of one
+    workflow_execution = models.ForeignKey(
+        'workflows.WorkflowExecution',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='database_executions'
+    )
     
     class Meta:
         verbose_name = _('Database Query Execution')

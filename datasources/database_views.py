@@ -19,12 +19,13 @@ from django.http import JsonResponse
 from django.db import transaction
 
 from .models import DataSource, DataSourceField, DataSourceSync
-from .database_models import DatabaseDataSource, DatabaseQuery, DatabaseQueryExecution
-from .forms import DatabaseDataSourceForm, DatabaseSettingsForm, DatabaseQueryForm
+from .database_models import DatabaseDataSource, DatabaseQuery, DatabaseQueryExecution, DatabaseConnection
+from .forms import DatabaseDataSourceForm, DatabaseSettingsForm, DatabaseQueryForm, DatabaseConnectionForm, DataSourceBaseForm
 from .connectors.database_connector import DatabaseConnector
 
 logger = logging.getLogger(__name__)
 
+# Update datasources/database_views.py
 class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
     """
     View for creating a new database data source
@@ -35,49 +36,37 @@ class DatabaseDataSourceCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.POST:
-            context['settings_form'] = DatabaseSettingsForm(self.request.POST)
+            context['base_form'] = DataSourceBaseForm(self.request.POST, prefix='base')
         else:
-            context['settings_form'] = DatabaseSettingsForm(initial={'db_type': 'postgresql'})
+            context['base_form'] = DataSourceBaseForm(prefix='base')
+            
+        # Get available connections
+        context['connections'] = DatabaseConnection.objects.all()
+        
         return context
     
     def form_valid(self, form):
         context = self.get_context_data()
-        settings_form = context['settings_form']
+        base_form = context['base_form']
         
-        if settings_form.is_valid():
+        if base_form.is_valid():
             with transaction.atomic():
                 # Save the base data source
-                datasource = form.save(commit=False)
+                datasource = base_form.save(commit=False)
                 datasource.type = 'database'
                 datasource.created_by = self.request.user
                 datasource.modified_by = self.request.user
-                
-                # Initialize credentials if password provided
-                if settings_form.cleaned_data.get('password'):
-                    datasource.credentials = {
-                        'password': settings_form.cleaned_data['password']
-                    }
-                
                 datasource.save()
                 
                 # Save the database settings
-                db_settings = settings_form.save(commit=False)
+                db_settings = form.save(commit=False)
                 db_settings.datasource = datasource
                 db_settings.save()
                 
                 messages.success(self.request, _('Database data source created successfully.'))
-                
-                # Test connection if requested
-                if 'test_connection' in self.request.POST:
-                    return redirect('datasources:database_test_connection', pk=datasource.pk)
-                
                 return redirect('datasources:database_detail', pk=datasource.pk)
         else:
             return self.form_invalid(form)
-    
-    def form_invalid(self, form):
-        messages.error(self.request, _('Please correct the errors below.'))
-        return super().form_invalid(form)
 
 
 class DatabaseDataSourceUpdateView(LoginRequiredMixin, UpdateView):

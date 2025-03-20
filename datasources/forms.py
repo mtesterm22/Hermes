@@ -6,6 +6,7 @@ from django.forms import inlineformset_factory
 from .models import DataSource, DataSourceField
 from .csv_models import CSVDataSource, CSVFileUpload
 from .database_models import DatabaseDataSource, DatabaseQuery
+from .connection_models import DatabaseConnection
 from cryptography.fernet import Fernet
 from django.conf import settings
 import json
@@ -99,28 +100,11 @@ DataSourceFieldFormSet = inlineformset_factory(
     can_delete=True
 )
 
-# Database Forms
-class DatabaseDataSourceForm(forms.ModelForm):
-    """
-    Form for creating/editing a database data source.
-    """
-    class Meta:
-        model = DataSource
-        fields = ['name', 'description', 'status']
-        widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
-        }
-        
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['name'].widget.attrs.update({'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
-        self.fields['description'].widget.attrs.update({'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
-        self.fields['status'].widget.attrs.update({'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'})
+# Add to datasources/forms.py
 
-
-class DatabaseSettingsForm(forms.ModelForm):
+class DatabaseConnectionForm(forms.ModelForm):
     """
-    Form for database-specific settings.
+    Form for creating/editing a database connection.
     """
     password = forms.CharField(
         label=_('Password'),
@@ -137,10 +121,10 @@ class DatabaseSettingsForm(forms.ModelForm):
     )
     
     class Meta:
-        model = DatabaseDataSource
+        model = DatabaseConnection
         fields = [
-            'db_type', 'host', 'port', 'database_name', 'schema', 'username',
-            'use_ssl', 'ssl_cert_path', 'connection_timeout',
+            'name', 'description', 'db_type', 'host', 'port', 'database_name', 
+            'schema', 'username', 'use_ssl', 'ssl_cert_path', 'connection_timeout',
             'query_timeout', 'max_rows', 'fetch_size'
         ]
         widgets = {
@@ -160,11 +144,6 @@ class DatabaseSettingsForm(forms.ModelForm):
                 css_class = 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
             
             field.widget.attrs.update({'class': css_class})
-        
-        # Set initial port based on database type if creating a new instance
-        if not self.instance.pk and 'db_type' in self.initial:
-            db_type = self.initial['db_type']
-            self.fields['port'].initial = self.get_default_port(db_type)
     
     def get_default_port(self, db_type):
         """Get the default port for a database type."""
@@ -177,44 +156,62 @@ class DatabaseSettingsForm(forms.ModelForm):
         }
         return port_map.get(db_type)
     
-    def clean(self):
-        cleaned_data = super().clean()
-        
-        # Update port based on database type if not specified
-        if not cleaned_data.get('port') and cleaned_data.get('db_type'):
-            cleaned_data['port'] = self.get_default_port(cleaned_data['db_type'])
-        
-        return cleaned_data
-    
     def save(self, commit=True):
         instance = super().save(commit=False)
         
         # Handle password
         if self.cleaned_data.get('password'):
-            # Get parent DataSource to update credentials
-            if hasattr(instance, 'datasource'):
-                datasource = instance.datasource
-                
-                # Initialize credentials dict if it doesn't exist
-                if not datasource.credentials:
-                    datasource.credentials = {}
-                
-                # Import encryption utilities
-                from core.utils.encryption import encrypt_credentials
-                
-                # Encrypt the password and store it securely
-                credentials_dict = {'password': self.cleaned_data['password']}
-                encrypted = encrypt_credentials(credentials_dict)
-                datasource.credentials['encrypted_credentials'] = encrypted
-                
-                # Save DataSource to persist credentials
-                if commit:
-                    datasource.save(update_fields=['credentials'])
+            # Initialize credentials dict if it doesn't exist
+            if not instance.credentials:
+                instance.credentials = {}
+            
+            # Import encryption utilities
+            from core.utils.encryption import encrypt_credentials
+            
+            # Encrypt the password and store it securely
+            credentials_dict = {'password': self.cleaned_data['password']}
+            encrypted = encrypt_credentials(credentials_dict)
+            instance.credentials['encrypted_credentials'] = encrypted
         
         if commit:
             instance.save()
         
         return instance
+
+class DatabaseDataSourceForm(forms.ModelForm):
+    """
+    Form for creating/editing a database data source.
+    """
+    class Meta:
+        model = DatabaseDataSource
+        fields = ['connection', 'query_timeout', 'max_rows']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Limit connections to active ones
+        self.fields['connection'].queryset = DatabaseConnection.objects.all().order_by('name')
+        
+        # Apply Tailwind classes
+        for field_name, field in self.fields.items():
+            css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            field.widget.attrs.update({'class': css_class})
+
+class DatabaseSettingsForm(forms.ModelForm):
+    """
+    Form for database-specific data source settings.
+    """
+    class Meta:
+        model = DatabaseDataSource
+        fields = ['connection', 'query_timeout', 'max_rows']
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Apply Tailwind classes to form fields
+        for field_name, field in self.fields.items():
+            css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            field.widget.attrs.update({'class': css_class})
 
 
 class DatabaseQueryForm(forms.ModelForm):
@@ -254,3 +251,20 @@ class DatabaseQueryForm(forms.ModelForm):
                 return parameters
         
         return parameters
+
+class DataSourceBaseForm(forms.ModelForm):
+    """
+    Form for the base DataSource model.
+    """
+    class Meta:
+        model = DataSource
+        fields = ['name', 'description', 'status']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            css_class = 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            field.widget.attrs.update({'class': css_class})
