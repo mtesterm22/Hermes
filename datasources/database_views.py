@@ -19,7 +19,7 @@ from django.http import JsonResponse
 from django.db import transaction
 
 from .models import DataSource, DataSourceField, DataSourceSync
-from .database_models import DatabaseDataSource, DatabaseQuery, DatabaseQueryExecution, DatabaseConnection
+from .database_models import DatabaseDataSource, DatabaseQuery, DatabaseQueryExecution, DatabaseConnection, DatabaseQuery  
 from .forms import DatabaseDataSourceForm, DatabaseSettingsForm, DatabaseQueryForm, DatabaseConnectionForm, DataSourceBaseForm
 from .connectors.database_connector import DatabaseConnector
 
@@ -366,15 +366,26 @@ class DatabaseQueryUpdateView(LoginRequiredMixin, UpdateView):
         context['datasource'] = self.object.database_datasource.datasource
         context['db_settings'] = self.object.database_datasource
         
+        # Print debug info to help diagnose the issue
+        print(f"Query text in context: {self.object.query_text[:100]}...")
+        
         # Add available tables for reference
         try:
             from core.database import get_connector
             connector = get_connector(self.object.database_datasource.get_connection_info())
-            context['tables'] = connector.get_table_names()
+            context['tables'] = connector.get_table_names() if connector else []
         except Exception as e:
             context['connection_error'] = str(e)
             
         return context
+    
+    def get_initial(self):
+        """Get initial data to use for the form"""
+        initial = super().get_initial()
+        # Ensure query_text is included in initial data
+        initial['query_text'] = self.object.query_text
+        initial['parameters'] = self.object.parameters
+        return initial
     
     def form_valid(self, form):
         # Update the modified_by field
@@ -431,10 +442,32 @@ class DatabaseQueryExecuteView(LoginRequiredMixin, View):
             
             # Create connector and execute query
             connector = DatabaseConnector(datasource)
-            success, results, execution = connector.execute_query(
-                query.query_text,
-                params
-            )
+            
+            # Debug connection info
+            print(f"Executing query for datasource: {datasource.name}")
+            print(f"Query text: {query.query_text[:100]}...")
+            
+            # Check for Oracle database
+            is_oracle = False
+            try:
+                is_oracle = (connector.db_settings.connection.db_type.lower() == 'oracle')
+                print(f"Detected database type: {'Oracle' if is_oracle else connector.db_settings.connection.db_type}")
+            except Exception as e:
+                print(f"Error detecting database type: {str(e)}")
+            
+            # Use Oracle-specific handling
+            if is_oracle:
+                print("Using Oracle-specific query execution")
+                success, results, execution = connector.execute_oracle_query(
+                    query.query_text,
+                    params
+                )
+            else:
+                # Normal execution for other database types
+                success, results, execution = connector.execute_query(
+                    query.query_text,
+                    params
+                )
             
             if success:
                 messages.success(request, _('Query executed successfully.'))
@@ -443,14 +476,20 @@ class DatabaseQueryExecuteView(LoginRequiredMixin, View):
                 if execution:
                     return redirect('datasources:database_execution_detail', pk=execution.pk)
             else:
-                messages.error(request, _('Query execution failed.'))
+                error_msg = _('Query execution failed.')
+                if isinstance(execution, DatabaseQueryExecution) and execution.error_message:
+                    error_msg = f"{error_msg} {execution.error_message}"
+                messages.error(request, error_msg)
             
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error executing query: {str(e)}")
+            print(error_details)
             messages.error(request, _('Error executing query: {}').format(str(e)))
         
         # Redirect back to detail page
         return redirect('datasources:database_detail', pk=datasource.pk)
-
 
 class DatabaseQueryExecutionDetailView(LoginRequiredMixin, DetailView):
     """
@@ -629,3 +668,138 @@ WHERE ROWNUM <= 100
             return JsonResponse({'query': templates[template_name]})
         else:
             return JsonResponse({'templates': list(templates.keys())})
+
+"""
+Views for detecting and managing database fields from queries.
+"""
+
+class DatabaseFieldDetectionView(LoginRequiredMixin, View):
+    """
+    View for detecting fields from database queries
+    """
+    def post(self, request, pk):
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'database':
+            messages.error(request, _('This is not a database data source.'))
+            return redirect('datasources:index')
+        
+        try:
+            # Get query ID from form
+            query_id = request.POST.get('query_id')
+            
+            if query_id:
+                # Use existing query
+                query = get_object_or_404(DatabaseQuery, pk=query_id)
+                query_text = query.query_text
+                params = query.parameters
+            else:
+                # Use ad-hoc query from form
+                query_text = request.POST.get('query_text')
+                params_text = request.POST.get('parameters', '{}')
+                
+                if not query_text:
+                    messages.error(request, _('No query provided for field detection.'))
+                    return redirect('datasources:database_detail', pk=pk)
+                
+                # Parse parameters
+                try:
+                    params = json.loads(params_text) if params_text else {}
+                except json.JSONDecodeError:
+                    messages.error(request, _('Invalid JSON parameters.'))
+                    return redirect('datasources:database_detail', pk=pk)
+            
+            # Create connector and detect fields
+            connector = DatabaseConnector(datasource)
+            
+            # Option to replace existing fields
+            replace_fields = request.POST.get('replace_fields') == 'on'
+            
+            # Detect and create fields
+            if replace_fields:
+                # Delete existing fields first
+                datasource.fields.all().delete()
+                messages.success(request, _('Existing fields removed.'))
+            
+            # Detect fields and create them
+            fields = connector.create_fields_from_query(datasource, query_text, params)
+            
+            messages.success(
+                request,
+                _('Successfully detected {count} fields from database query.').format(
+                    count=len(fields)
+                )
+            )
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error detecting fields: {str(e)}")
+            print(error_details)
+            messages.error(request, _('Error detecting fields: {}').format(str(e)))
+        
+        return redirect('datasources:database_detail', pk=pk)
+    
+
+class DatabaseFieldManagementView(LoginRequiredMixin, View):
+    """
+    View for managing fields for database data sources
+    """
+    template_name = 'datasources/database/fields.html'
+    
+    def get(self, request, pk):
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'database':
+            messages.error(request, _('This is not a database data source.'))
+            return redirect('datasources:index')
+        
+        # Get available queries for this data source
+        try:
+            db_settings = datasource.database_settings
+            queries = DatabaseQuery.objects.filter(
+                database_datasource=db_settings,
+                is_enabled=True
+            ).order_by('name')
+        except Exception:
+            queries = []
+        
+        formset = DataSourceFieldFormSet(instance=datasource)
+        
+        return render(request, self.template_name, {
+            'datasource': datasource,
+            'formset': formset,
+            'queries': queries
+        })
+    
+    def post(self, request, pk):
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'database':
+            messages.error(request, _('This is not a database data source.'))
+            return redirect('datasources:index')
+        
+        formset = DataSourceFieldFormSet(request.POST, instance=datasource)
+        
+        if formset.is_valid():
+            formset.save()
+            messages.success(request, _('Fields updated successfully.'))
+            return redirect('datasources:database_detail', pk=pk)
+        else:
+            messages.error(request, _('Please correct the errors below.'))
+            
+        # Get available queries for this data source for re-rendering the form
+        try:
+            db_settings = datasource.database_settings
+            queries = DatabaseQuery.objects.filter(
+                database_datasource=db_settings,
+                is_enabled=True
+            ).order_by('name')
+        except Exception:
+            queries = []
+            
+        return render(request, self.template_name, {
+            'datasource': datasource,
+            'formset': formset,
+            'queries': queries
+        })

@@ -23,14 +23,15 @@ def get_connector(connection_info):
     db_type = connection_info.get('type', '').lower()
     
     if db_type == 'oracle':
+        from .oracle_connector import OracleConnector
         return OracleConnector(connection_info)
-    # if db_type == 'postgresql':
-        # return PostgreSQLConnector(connection_info)
-    # elif db_type == 'mysql':
-        # return MySQLConnector(connection_info)
-    # elif db_type == 'sqlserver':
-        # return SQLServerConnector(connection_info)
-    # ... other database types ...
+    elif db_type == 'postgresql':
+        from .connectors import PostgreSQLConnector
+        return PostgreSQLConnector(connection_info)
+    elif db_type == 'mysql':
+        from .connectors import MySQLConnector
+        return MySQLConnector(connection_info)
+    # Add more database types as needed
     else:
         return None
 

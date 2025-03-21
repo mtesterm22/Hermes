@@ -321,6 +321,101 @@ class DatabaseConnector:
             
             return False, None, execution_record
     
+    def execute_oracle_query(self, query_text, params=None):
+        """
+        Execute an Oracle-specific query with special handling for certain operations.
+        
+        Args:
+            query_text: SQL query to execute
+            params: Optional parameters for the query
+            
+        Returns:
+            Tuple of (success, results, execution_record)
+        """
+        # Create an execution record
+        execution_record = DatabaseQueryExecution.objects.create(
+            database_datasource=self.db_settings,
+            query_text=query_text,
+            parameters=params or {},
+            status='running'
+        )
+        
+        try:
+            # Get connection info
+            connection_info = self.db_settings.get_connection_info()
+            
+            # Debug connection info
+            print("Oracle connection info keys:", connection_info.keys())
+            
+            # Ensure Oracle type is set
+            connection_info['type'] = 'oracle'
+            
+            # If no password, try to get it from credentials directly
+            if 'password' not in connection_info and hasattr(self.db_settings.connection, 'credentials'):
+                print("Trying to retrieve password directly from credentials")
+                try:
+                    creds = self.db_settings.connection.credentials
+                    if isinstance(creds, dict):
+                        # Try direct password
+                        if 'password' in creds:
+                            connection_info['password'] = creds['password']
+                            print("Found password in direct credentials")
+                            
+                        # Try encrypted credentials
+                        elif 'encrypted_credentials' in creds:
+                            from core.utils.encryption import decrypt_credentials
+                            decrypted = decrypt_credentials(creds['encrypted_credentials'])
+                            if isinstance(decrypted, dict) and 'password' in decrypted:
+                                connection_info['password'] = decrypted['password']
+                                print("Found password in encrypted credentials")
+                except Exception as e:
+                    print(f"Error retrieving password: {str(e)}")
+            
+            # Create Oracle connector directly
+            from core.database.oracle_connector import OracleConnector
+            connector = OracleConnector(connection_info)
+            
+            # Execute the query
+            success, results, error = connector.execute_query(
+                query_text, 
+                params,
+                timeout=self.db_settings.query_timeout
+            )
+            
+            # Update execution record
+            if success:
+                # Determine rows affected
+                if isinstance(results, dict) and 'rowcount' in results:
+                    rows_affected = results['rowcount']
+                elif isinstance(results, list):
+                    rows_affected = len(results)
+                else:
+                    rows_affected = 0
+                
+                execution_record.complete(
+                    status='completed',
+                    rows_affected=rows_affected
+                )
+            else:
+                execution_record.complete(
+                    status='failed',
+                    error_message=error
+                )
+            
+            return success, results, execution_record
+        
+        except Exception as e:
+            import traceback
+            error_message = f"Error executing Oracle query: {str(e)}\n{traceback.format_exc()}"
+            print(error_message)
+            
+            execution_record.complete(
+                status='failed',
+                error_message=error_message
+            )
+            
+            return False, None, execution_record
+
     def get_tables(self) -> List[str]:
         """
         Get a list of tables available in the database.
@@ -439,10 +534,213 @@ class DatabaseConnector:
             self.datasource.save(update_fields=['status'])
             
             raise
+    """
+    Enhanced database field detection functionality.
+
+    This extension to the database connector allows detecting fields from queries
+    and storing them for attribute management similar to CSV data sources.
+    """
+
+    def detect_fields_from_query(self, query, params=None):
+        """
+        Detect fields from a database query by executing it and examining the result set.
+        
+        Args:
+            query: SQL query to execute
+            params: Optional parameters for the query
+            
+        Returns:
+            List of DataSourceField dictionaries
+        """
+        try:
+            print(f"Detecting fields from query: {query[:100]}...")
+            
+            # Check database type for specialized handling
+            is_oracle = False
+            try:
+                is_oracle = (self.db_settings.connection.db_type.lower() == 'oracle')
+            except Exception as e:
+                print(f"Error detecting database type: {str(e)}")
+            
+            # Execute the query to get sample data
+            # Limit the number of rows to improve performance
+            limited_query = self._limit_query_for_detection(query)
+            
+            if is_oracle:
+                success, results, execution = self.execute_oracle_query(limited_query, params)
+            else:
+                success, results, execution = self.execute_query(limited_query, params)
+            
+            if not success or not results:
+                if execution and execution.error_message:
+                    raise ValueError(f"Query execution failed: {execution.error_message}")
+                raise ValueError("Query execution failed or returned no results")
+            
+            # Process results to extract field information
+            if isinstance(results, list) and results:
+                # Get the first row for sample data
+                sample_row = results[0]
+                fields = []
+                
+                for field_name, value in sample_row.items():
+                    # Create field definition
+                    field = {
+                        'name': field_name,
+                        'display_name': field_name.replace('_', ' ').title(),
+                        'field_type': self._guess_field_type(value),
+                        'is_key': False,  # Default to False, user can modify later
+                        'is_nullable': True,  # Default to True, user can modify later
+                        'sample_data': str(value) if value is not None else ''
+                    }
+                    fields.append(field)
+                
+                return fields
+            else:
+                raise ValueError("Unexpected result format")
+        
+        except Exception as e:
+            import traceback
+            print(f"Error detecting fields: {str(e)}")
+            print(traceback.format_exc())
+            raise
+
+    def _limit_query_for_detection(self, query):
+        """
+        Add LIMIT/ROWNUM clause to query for field detection to improve performance.
+        Handles different database syntaxes.
+        
+        Args:
+            query: Original SQL query
+            
+        Returns:
+            Modified query with row limit
+        """
+        # Determine database type
+        db_type = self.db_settings.connection.db_type.lower()
+        
+        # Strip ending semicolon if present
+        query = query.strip()
+        if query.endswith(';'):
+            query = query[:-1].strip()
+        
+        # Different limits for different database types
+        if db_type == 'oracle':
+            # Check if query already has a ROWNUM condition
+            if 'rownum' in query.lower():
+                return query
+                
+            # Oracle uses ROWNUM
+            if 'where' in query.lower():
+                return f"{query} AND ROWNUM <= 5"
+            else:
+                return f"{query} WHERE ROWNUM <= 5"
+                
+        elif db_type in ['postgresql', 'mysql', 'sqlite']:
+            # Check if query already has a LIMIT clause
+            if 'limit' in query.lower():
+                return query
+                
+            # Most SQL databases use LIMIT
+            return f"{query} LIMIT 5"
+            
+        elif db_type == 'sqlserver':
+            # SQL Server uses TOP
+            if 'top' in query.lower():
+                return query
+                
+            # Insert TOP after the first SELECT
+            select_pos = query.lower().find('select')
+            if select_pos >= 0:
+                return f"{query[:select_pos+6]} TOP 5 {query[select_pos+6:]}"
+        
+        # Default - return query unchanged
+        return query
+
+    def _guess_field_type(self, value):
+        """
+        Determine the field type based on the value.
+        
+        Args:
+            value: Sample value to analyze
+            
+        Returns:
+            Field type string
+        """
+        if value is None:
+            return 'text'
+        
+        # Use type to determine field type
+        if isinstance(value, bool):
+            return 'boolean'
+        elif isinstance(value, int):
+            return 'integer'
+        elif isinstance(value, float):
+            return 'float'
+        elif isinstance(value, (datetime.date, datetime.datetime)):
+            if isinstance(value, datetime.datetime):
+                return 'datetime'
+            else:
+                return 'date'
+        
+        # If it's a string, try to detect if it might be a formatted date/datetime
+        if isinstance(value, str):
+            # Try various date formats
+            for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
+                try:
+                    datetime.datetime.strptime(value, fmt)
+                    return 'date'
+                except ValueError:
+                    pass
+            
+            # Try datetime formats
+            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%d/%m/%Y %H:%M:%S']:
+                try:
+                    datetime.datetime.strptime(value, fmt)
+                    return 'datetime'
+                except ValueError:
+                    pass
+        
+        # Default to text for anything else
+        return 'text'
+
+    def create_fields_from_query(self, datasource, query, params=None):
+        """
+        Create field definitions in the database based on query results.
+        
+        Args:
+            datasource: DataSource instance to add fields to
+            query: SQL query to execute
+            params: Optional parameters for the query
+            
+        Returns:
+            List of created DataSourceField instances
+        """
+        from ..models import DataSourceField
+        
+        # First, detect fields from the query
+        field_defs = self.detect_fields_from_query(query, params)
+        
+        # Create field objects in the database
+        created_fields = []
+        
+        with transaction.atomic():
+            # Optionally clear existing fields first
+            # datasource.fields.all().delete()
+            
+            # Create new fields
+            for field_def in field_defs:
+                field = DataSourceField(
+                    datasource=datasource,
+                    **field_def
+                )
+                field.save()
+                created_fields.append(field)
+        
+        return created_fields
 
 def execute_oracle_query(self, query_text, params=None):
     """
-    Execute an Oracle-specific query with special handling for certain operations.
+    Execute an Oracle-specific query with dedicated handling.
     
     Args:
         query_text: SQL query to execute
@@ -451,8 +749,7 @@ def execute_oracle_query(self, query_text, params=None):
     Returns:
         Tuple of (success, results, execution_record)
     """
-    if self.db_settings.connection.db_type != 'oracle':
-        return False, None, "Not an Oracle connection"
+    from core.database.oracle_connector import OracleConnector
     
     # Create an execution record
     execution_record = DatabaseQueryExecution.objects.create(
@@ -463,7 +760,27 @@ def execute_oracle_query(self, query_text, params=None):
     )
     
     try:
-        connector = self._get_connector()
+        # Get connection info
+        connection_info = self.db_settings.get_connection_info()
+        
+        # Ensure connection info has the type set to 'oracle'
+        connection_info['type'] = 'oracle'
+        
+        # Create Oracle connector directly
+        connector = OracleConnector(connection_info)
+        
+        # Test connection first to ensure it's valid
+        success, message = connector.test_connection()
+        if not success:
+            execution_record.complete(
+                status='failed',
+                error_message=f"Failed to connect: {message}"
+            )
+            return False, None, execution_record
+        
+        # Execute the query with detailed logging
+        print(f"Executing Oracle query: {query_text}")
+        print(f"With parameters: {params}")
         
         # Execute the query
         success, results, error = connector.execute_query(
@@ -495,8 +812,9 @@ def execute_oracle_query(self, query_text, params=None):
         return success, results, execution_record
     
     except Exception as e:
-        error_message = f"Error executing Oracle query: {str(e)}"
-        logger.error(error_message)
+        import traceback
+        error_message = f"Error executing Oracle query: {str(e)}\n{traceback.format_exc()}"
+        print(error_message)
         
         execution_record.complete(
             status='failed',
@@ -504,3 +822,4 @@ def execute_oracle_query(self, query_text, params=None):
         )
         
         return False, None, execution_record
+

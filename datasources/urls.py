@@ -63,6 +63,8 @@ urlpatterns = [
     path('database/queries/<int:pk>/delete/', database_views.DatabaseQueryDeleteView.as_view(), name='database_query_delete'),
     path('database/queries/<int:pk>/execute/', database_views.DatabaseQueryExecuteView.as_view(), name='database_query_execute'),
     path('database/executions/<int:pk>/', database_views.DatabaseQueryExecutionDetailView.as_view(), name='database_execution_detail'),
+    path('database/<int:pk>/detect-fields/', database_views.DatabaseFieldDetectionView.as_view(), name='database_detect_fields'),
+    path('database/<int:pk>/fields/', database_views.DatabaseFieldManagementView.as_view(), name='database_fields'),
 
     # Database Connections
     path('connections/', connection_views.ConnectionListView.as_view(), name='connections'),

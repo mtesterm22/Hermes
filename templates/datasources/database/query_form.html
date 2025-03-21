@@ -136,21 +136,6 @@
                             </div>
                         </div>
                         
-                        <div class="sm:col-span-6">
-                            <label for="{{ form.query_text.id_for_label }}" class="block text-sm font-medium text-gray-700">
-                                SQL Query
-                            </label>
-                            <div class="mt-1">
-                                {{ form.query_text }}
-                            </div>
-                            {% if form.query_text.errors %}
-                            <p class="mt-2 text-sm text-red-600">
-                                {{ form.query_text.errors|join:", " }}
-                            </p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
                 
                 <div class="pt-8">
                     <div>

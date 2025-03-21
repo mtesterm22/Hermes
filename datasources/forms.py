@@ -185,8 +185,6 @@ class DatabaseConnectionForm(forms.ModelForm):
             instance.save()
         
         return instance
-        
-        return instance
 
 
 
@@ -279,16 +277,33 @@ class DatabaseQueryForm(forms.ModelForm):
     """
     class Meta:
         model = DatabaseQuery
-        fields = ['name', 'description', 'query_text', 'query_type', 'parameters', 'is_enabled']
+        fields = ['name', 'description', 'query_text', 'query_type', 'parameters', 'is_enabled', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
             'description': forms.Textarea(attrs={'rows': 2, 'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
-            'query_text': forms.Textarea(attrs={'rows': 10, 'class': 'font-mono focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
+            'query_text': forms.Textarea(attrs={
+                'rows': 10, 
+                'class': 'font-mono focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
             'query_type': forms.Select(attrs={'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
             'parameters': forms.Textarea(attrs={'rows': 3, 'class': 'font-mono focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'}),
             'is_enabled': forms.CheckboxInput(attrs={'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'}),
+            'is_default': forms.CheckboxInput(attrs={'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Debug the initial values
+        if 'query_text' in kwargs.get('initial', {}):
+            print(f"Initial query_text: {kwargs['initial']['query_text'][:100]}...")
+        elif self.instance and self.instance.pk:
+            print(f"Instance query_text: {self.instance.query_text[:100]}...")
+        
+        # For parameters, ensure we convert empty values to a valid JSON object
+        if not self.instance.parameters and self.instance.pk:
+            self.initial['parameters'] = '{}'
+            
 class DataSourceBaseForm(forms.ModelForm):
     """
     Form for the base DataSource model.

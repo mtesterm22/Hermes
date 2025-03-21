@@ -2,6 +2,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.conf import settings
 from core.utils.encryption import encrypt_credentials, decrypt_credentials
 
 class DatabaseConnection(models.Model):
@@ -83,21 +84,39 @@ class DatabaseConnection(models.Model):
             'user': self.username,
         }
         
-        # Add password from credentials if available
+        # Debug the credentials structure
+        print("Credentials structure:", type(self.credentials))
         if self.credentials:
+            print("Credentials keys:", self.credentials.keys() if isinstance(self.credentials, dict) else "Not a dict")
+        
+        # Add password from credentials if available
+        password_found = False
+        if self.credentials and isinstance(self.credentials, dict):
             # Check for encrypted credentials
             if 'encrypted_credentials' in self.credentials:
                 encrypted_creds = self.credentials.get('encrypted_credentials')
                 try:
                     from core.utils.encryption import decrypt_credentials
                     decrypted_creds = decrypt_credentials(encrypted_creds)
-                    if decrypted_creds and 'password' in decrypted_creds:
+                    if decrypted_creds and isinstance(decrypted_creds, dict) and 'password' in decrypted_creds:
                         connection_info['password'] = decrypted_creds['password']
+                        print("Password retrieved from encrypted credentials")
+                        password_found = True
                 except Exception as e:
                     print(f"Error decrypting credentials: {str(e)}")
+                    import traceback
+                    print(traceback.format_exc())
+            
             # Fall back to direct password storage (legacy support)
-            elif 'password' in self.credentials:
+            if not password_found and 'password' in self.credentials:
                 connection_info['password'] = self.credentials.get('password')
+                print("Password retrieved from direct credentials")
+                password_found = True
+        
+        # If no password found and this is a development environment, use a default
+        if not password_found and hasattr(settings, 'DEBUG') and settings.DEBUG:
+            print("WARNING: Using default password for development")
+            connection_info['password'] = 'dev_password'  # Only for development!
         
         # Add Oracle-specific parameters
         if self.db_type == 'oracle':
@@ -112,6 +131,13 @@ class DatabaseConnection(models.Model):
             
             if self.ssl_cert_path:
                 connection_info['ssl_cert'] = self.ssl_cert_path
+        
+        # Debug output
+        safe_info = connection_info.copy()
+        if 'password' in safe_info:
+            safe_info['password'] = '******'
+        print("Connection info:", safe_info)
+        print("Password included:", 'password' in connection_info)
         
         return connection_info
     

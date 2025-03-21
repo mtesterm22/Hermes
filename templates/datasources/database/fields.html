@@ -1,0 +1,235 @@
+{# templates/datasources/database/fields.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - Fields{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }} - Field Management
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Auto-Detect Fields from Query
+        </h3>
+        <p class="mt-1 text-sm text-gray-500">
+            Detect fields automatically by executing a query and analyzing the results.
+        </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:p-6">
+        <form method="post" action="{% url 'datasources:database_detect_fields' datasource.id %}">
+            {% csrf_token %}
+            
+            <div class="space-y-6">
+                {% if queries %}
+                <div>
+                    <label for="query_id" class="block text-sm font-medium text-gray-700">Use Existing Query</label>
+                    <select id="query_id" name="query_id" class="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="">-- Select a query --</option>
+                        {% for query in queries %}
+                        <option value="{{ query.id }}">{{ query.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="px-2 bg-white text-sm text-gray-500">OR</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <label for="query_text" class="block text-sm font-medium text-gray-700">Enter SQL Query</label>
+                    <div class="mt-1">
+                        <textarea id="query_text" name="query_text" rows="3" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md" placeholder="SELECT * FROM table LIMIT 10"></textarea>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Enter a query that returns sample data. The system will analyze the results to create field definitions.
+                    </p>
+                </div>
+                
+                <div>
+                    <label for="parameters" class="block text-sm font-medium text-gray-700">Query Parameters (JSON)</label>
+                    <div class="mt-1">
+                        <textarea id="parameters" name="parameters" rows="2" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md" placeholder='{"param1": "value1", "param2": 123}'></textarea>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Optional parameters for the query in JSON format.
+                    </p>
+                </div>
+                
+                <div>
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="replace_fields" name="replace_fields" type="checkbox" class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="replace_fields" class="font-medium text-gray-700">Replace Existing Fields</label>
+                            <p class="text-gray-500">Remove all existing fields before creating new ones.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Detect Fields
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Manage Fields
+        </h3>
+    </div>
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Field Name
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Display Name
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Field Type
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Key Field
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Nullable
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Delete
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for form in formset %}
+                        <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {{ form.id }}
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.name.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {{ form.display_name }}
+                                {% if form.display_name.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.display_name.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {{ form.field_type }}
+                                {% if form.field_type.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.field_type.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_key }}
+                                </div>
+                                {% if form.is_key.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.is_key.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_nullable }}
+                                </div>
+                                {% if form.is_nullable.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.is_nullable.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if form.instance.pk %}
+                                <div class="flex items-center h-5">
+                                    {{ form.DELETE }}
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-6">
+                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save Fields
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle between existing query and custom query
+        const querySelect = document.getElementById('query_id');
+        const queryTextArea = document.getElementById('query_text');
+        const paramsTextArea = document.getElementById('parameters');
+        
+        if (querySelect && queryTextArea) {
+            querySelect.addEventListener('change', function() {
+                if (querySelect.value) {
+                    // Existing query selected, disable custom query
+                    queryTextArea.disabled = true;
+                    queryTextArea.classList.add('bg-gray-100');
+                    paramsTextArea.disabled = true;
+                    paramsTextArea.classList.add('bg-gray-100');
+                } else {
+                    // No query selected, enable custom query
+                    queryTextArea.disabled = false;
+                    queryTextArea.classList.remove('bg-gray-100');
+                    paramsTextArea.disabled = false;
+                    paramsTextArea.classList.remove('bg-gray-100');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,4 +1,4 @@
-{# templates/datasources/database/detail.html - revised version #}
+{# templates/datasources/database/detail.html #}
 {% extends "base.html" %}
 {% load static %}
 
@@ -152,12 +152,83 @@
     </div>
 </div>
 
-<!-- Queries -->
+<!-- Primary Query Section -->
 <div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
     <div class="px-4 py-5 sm:px-6 flex justify-between">
         <div>
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Database Queries</h3>
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">Queries configured for this data source.</p>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Primary Query</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">The main query for this data source.</p>
+        </div>
+        <div>
+            <!-- Add actions as needed -->
+        </div>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:p-6">
+        {% if queries %}
+            {% with primary_query=queries.first %}
+            <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Query Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ primary_query.name }}</dd>
+                </div>
+                <div class="sm:col-span-1">
+                    <dt class="text-sm font-medium text-gray-500">Type</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ primary_query.get_query_type_display }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">Description</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ primary_query.description|default:"No description provided" }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">SQL</dt>
+                    <dd class="mt-1 text-sm text-gray-900 bg-gray-50 p-4 rounded-md font-mono overflow-x-auto">{{ primary_query.query_text }}</dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-sm font-medium text-gray-500">Parameters</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {% if primary_query.parameters %}
+                        <div class="bg-gray-50 p-2 rounded-md font-mono text-xs overflow-x-auto">{{ primary_query.parameters|pprint }}</div>
+                        {% else %}
+                        None
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+            
+            <div class="mt-5 flex space-x-3">
+                <form method="post" action="{% url 'datasources:database_query_execute' primary_query.id %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Execute Query
+                    </button>
+                </form>
+                <a href="{% url 'datasources:database_query_update' primary_query.id %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Edit Query
+                </a>
+            </div>
+            {% endwith %}
+        {% else %}
+            <div class="text-center py-6">
+                <p class="text-sm text-gray-500">No queries defined for this data source yet.</p>
+                <div class="mt-4">
+                    <a href="{% url 'datasources:database_query_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="-ml-1 mr-2 h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add Query
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Additional Queries Section -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Additional Queries</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Additional queries for this data source.</p>
         </div>
         <div>
             <a href="{% url 'datasources:database_query_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -166,7 +237,7 @@
         </div>
     </div>
     <div class="border-t border-gray-200">
-        {% if queries %}
+        {% if queries.count > 1 %}
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -184,7 +255,7 @@
                             Default
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Executed
+                            Preview
                         </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
@@ -193,71 +264,64 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for query in queries %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ query.name }}</div>
-                            <div class="text-sm text-gray-500">{{ query.description|truncatechars:50 }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ query.get_query_type_display }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if query.is_enabled %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Enabled
-                            </span>
-                            {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Disabled
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if query.is_default %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                Default
-                            </span>
-                            {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                No
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {% if query.executions.exists %}
-                            {{ query.executions.first.start_time|date:"M d, Y H:i" }}
-                            {% else %}
-                            Never
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <form method="post" action="{% url 'datasources:database_query_execute' query.id %}" class="inline">
-                                {% csrf_token %}
-                                <button type="submit" class="text-blue-600 hover:text-blue-900 mr-3">Execute</button>
-                            </form>
-                            <a href="{% url 'datasources:database_query_update' query.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
-                            <a href="{% url 'datasources:database_query_delete' query.id %}" class="text-red-600 hover:text-red-900">Delete</a>
-                        </td>
-                    </tr>
+                        {% if not forloop.first %}  <!-- Skip the primary query -->
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{{ query.name }}</div>
+                                <div class="text-sm text-gray-500">{{ query.description|truncatechars:50 }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {% if query.query_type == 'select' %}bg-blue-100 text-blue-800{% elif query.query_type in 'insert,update,delete' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ query.get_query_type_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if query.is_enabled %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Enabled
+                                </span>
+                                {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Disabled
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if query.is_default %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    Default
+                                </span>
+                                {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    No
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="max-w-xs overflow-hidden">
+                                    <div class="text-sm font-mono bg-gray-100 rounded px-2 py-1 text-gray-800 truncate">
+                                        {{ query.query_text|truncatechars:40 }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <form method="post" action="{% url 'datasources:database_query_execute' query.id %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-blue-600 hover:text-blue-900 mr-3">Execute</button>
+                                </form>
+                                <a href="{% url 'datasources:database_query_update' query.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                                <a href="{% url 'datasources:database_query_delete' query.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+                            </td>
+                        </tr>
+                        {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
         <div class="text-center py-6">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No queries configured</h3>
-            <p class="mt-1 text-sm text-gray-500">Get started by creating a new query.</p>
-            <div class="mt-6">
-                <a href="{% url 'datasources:database_query_create' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    New Query
-                </a>
-            </div>
+            <p class="text-sm text-gray-500">No additional queries configured.</p>
+            <p class="mt-1 text-sm text-gray-500">You can add more queries to perform different operations with this data source.</p>
         </div>
         {% endif %}
     </div>
@@ -341,7 +405,81 @@
 
 <!-- Detect Fields Modal -->
 <div id="detect-fields-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <!-- Modal content - same as original -->
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        
+        <!-- Modal panel -->
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form method="post" action="{% url 'datasources:database_detect_fields' datasource.id %}" id="detect-fields-form">
+                {% csrf_token %}
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                Detect Fields from Database
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">
+                                    Choose whether to detect fields from a table or a query.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <!-- Tabs for table vs query selection -->
+                        <div class="border-b border-gray-200">
+                            <nav class="-mb-px flex" aria-label="Tabs">
+                                <button type="button" class="tab-btn border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="table-tab">
+                                    From Table
+                                </button>
+                                <button type="button" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ml-8" data-tab="query-tab">
+                                    From Query
+                                </button>
+                            </nav>
+                        </div>
+                        
+                        <!-- Table selection -->
+                        <div id="table-tab" class="py-4">
+                            <label for="table_name" class="block text-sm font-medium text-gray-700">Table Name</label>
+                            <select id="table_name" name="table_name" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                <option value="">Select a table</option>
+                            </select>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Fetching available tables...
+                            </p>
+                        </div>
+                        
+                        <!-- Query input -->
+                        <div id="query-tab" class="py-4 hidden">
+                            <label for="query" class="block text-sm font-medium text-gray-700">SQL Query</label>
+                            <div class="mt-1">
+                                <textarea id="query" name="query" rows="4" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md font-mono" placeholder="SELECT * FROM table LIMIT 1"></textarea>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Provide a query that returns sample data with all columns you want to detect.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Detect Fields
+                    </button>
+                    <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" id="cancel-detect-fields">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- Recent Syncs -->
@@ -412,4 +550,191 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Recent Query Executions -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Query Executions</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">History of query executions for this data source.</p>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if recent_executions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Time
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Query
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Duration
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Rows
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Details
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for execution in recent_executions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ execution.start_time }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">
+                                {% if execution.query %}
+                                {{ execution.query.name }}
+                                {% else %}
+                                Ad-hoc Query
+                                {% endif %}
+                            </div>
+                            <div class="text-xs text-gray-500 font-mono truncate max-w-xs">
+                                {{ execution.query_text|truncatechars:50 }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                {% if execution.status == 'completed' %}bg-green-100 text-green-800
+                                {% elif execution.status == 'failed' %}bg-red-100 text-red-800
+                                {% elif execution.status == 'running' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ execution.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if execution.duration_ms %}
+                            {{ execution.duration_ms|floatformat:0 }} ms
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ execution.rows_affected|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="{% url 'datasources:database_execution_detail' execution.id %}" class="text-blue-600 hover:text-blue-900">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-4 px-6">
+            <p class="text-sm text-gray-500">No query executions yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal functionality
+        const modal = document.getElementById('detect-fields-modal');
+        const showModalBtn = document.getElementById('show-detect-fields-modal');
+        const cancelBtn = document.getElementById('cancel-detect-fields');
+        
+        if (showModalBtn && modal && cancelBtn) {
+            showModalBtn.addEventListener('click', function() {
+                modal.classList.remove('hidden');
+                // Fetch tables when opening the modal
+                fetchTables();
+            });
+            
+            cancelBtn.addEventListener('click', function() {
+                modal.classList.add('hidden');
+            });
+        }
+        
+        // Tab functionality
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tableTab = document.getElementById('table-tab');
+        const queryTab = document.getElementById('query-tab');
+        
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all tabs
+                tabBtns.forEach(b => {
+                    b.classList.remove('border-blue-500', 'text-blue-600');
+                    b.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                });
+                
+                // Add active class to clicked tab
+                this.classList.add('border-blue-500', 'text-blue-600');
+                this.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                // Show/hide content
+                const tabId = this.getAttribute('data-tab');
+                if (tabId === 'table-tab') {
+                    tableTab.classList.remove('hidden');
+                    queryTab.classList.add('hidden');
+                } else {
+                    tableTab.classList.add('hidden');
+                    queryTab.classList.remove('hidden');
+                }
+            });
+        });
+        
+        // Fetch tables
+        function fetchTables() {
+            fetch('{% url "datasources:database_tables" datasource.id %}')
+                .then(response => response.json())
+                .then(data => {
+                    const tableSelect = document.getElementById('table_name');
+                    if (tableSelect) {
+                        // Clear existing options except first one
+                        while (tableSelect.options.length > 1) {
+                            tableSelect.remove(1);
+                        }
+                        
+                        // Add options for each table
+                        if (data.tables && data.tables.length > 0) {
+                            data.tables.forEach(table => {
+                                const option = document.createElement('option');
+                                option.value = table;
+                                option.textContent = table;
+                                tableSelect.appendChild(option);
+                            });
+                            
+                            // Update status text
+                            const statusText = tableSelect.parentNode.querySelector('p');
+                            if (statusText) {
+                                statusText.textContent = `${data.tables.length} tables available.`;
+                            }
+                        } else {
+                            // Update status text for no tables
+                            const statusText = tableSelect.parentNode.querySelector('p');
+                            if (statusText) {
+                                statusText.textContent = 'No tables found in this database.';
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching tables:', error);
+                    const tableSelect = document.getElementById('table_name');
+                    if (tableSelect) {
+                        const statusText = tableSelect.parentNode.querySelector('p');
+                        if (statusText) {
+                            statusText.textContent = 'Error fetching tables. Please check your connection.';
+                            statusText.classList.add('text-red-500');
+                        }
+                    }
+                });
+        }
+    });
+</script>
 {% endblock %}
