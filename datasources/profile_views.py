@@ -11,11 +11,12 @@ from .models import DataSource, DataSourceField
 from users.profile_integration import ProfileFieldMapping, IdentityResolutionConfig
 
 
+
 class ProfileMappingView(LoginRequiredMixin, View):
     """
-    View for managing profile mapping configuration
+    View for managing profile mapping configuration for any data source type
     """
-    template_name = 'datasources/csv/profile_mapping.html'
+    template_name = 'datasources/profile_mapping.html'  
     
     def get(self, request, pk):
         datasource = get_object_or_404(DataSource, pk=pk)
@@ -79,9 +80,9 @@ class SaveIdentityConfigView(LoginRequiredMixin, View):
 
 class CreateFieldMappingView(LoginRequiredMixin, View):
     """
-    View for creating a new field mapping
+    View for creating a new field mapping for any data source type
     """
-    template_name = 'datasources/csv/mapping_form.html'
+    template_name = 'datasources/mapping_form.html'  # Updated template path
     
     def get(self, request, pk):
         datasource = get_object_or_404(DataSource, pk=pk)
@@ -89,7 +90,13 @@ class CreateFieldMappingView(LoginRequiredMixin, View):
         
         if not fields.exists():
             messages.warning(request, _('No fields available for mapping. Please add fields to the data source first.'))
-            return redirect('datasources:profile_mapping', pk=pk)
+            
+            if datasource.type == 'csv':
+                return redirect('datasources:csv_detail', pk=pk)
+            elif datasource.type == 'database':
+                return redirect('datasources:database_detail', pk=pk)
+            else:
+                return redirect('datasources:detail', pk=pk)
         
         context = {
             'datasource': datasource,

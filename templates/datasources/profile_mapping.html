@@ -1,0 +1,282 @@
+{# templates/datasources/profile_mapping.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {{ datasource.name }} - Profile Mapping{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ datasource.name }} - Profile Mapping
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        {% if datasource.type == 'csv' %}
+        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+        {% elif datasource.type == 'database' %}
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+        {% else %}
+        <a href="{% url 'datasources:detail' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Data Source
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Identity Resolution Configuration
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Configure how records from this data source are matched to user profiles.
+        </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:p-6">
+        <form method="post" action="{% url 'datasources:save_identity_config' datasource.id %}">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <div>
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="id_is_enabled" name="is_enabled" type="checkbox" 
+                                   class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                   {% if id_config.is_enabled %}checked{% endif %}>
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="id_is_enabled" class="font-medium text-gray-700">Enable Identity Resolution</label>
+                            <p class="text-gray-500">When enabled, data from this source will be linked to user profiles.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="id_create_missing_profiles" name="create_missing_profiles" type="checkbox" 
+                                   class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                   {% if id_config.create_missing_profiles %}checked{% endif %}>
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="id_create_missing_profiles" class="font-medium text-gray-700">Create Missing Profiles</label>
+                            <p class="text-gray-500">When enabled, new user profiles will be created for unmatched records.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="id_matching_method" class="block text-sm font-medium text-gray-700">Matching Method</label>
+                    <select id="id_matching_method" name="matching_method" 
+                            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="exact" {% if id_config.matching_method == 'exact' %}selected{% endif %}>Exact Match</option>
+                        <option value="case_insensitive" {% if id_config.matching_method == 'case_insensitive' %}selected{% endif %}>Case Insensitive</option>
+                        <option value="fuzzy" {% if id_config.matching_method == 'fuzzy' %}selected{% endif %}>Fuzzy Match</option>
+                        <option value="custom" {% if id_config.matching_method == 'custom' %}selected{% endif %}>Custom Logic</option>
+                    </select>
+                </div>
+                
+                <div id="fuzzy_settings" class="{% if id_config.matching_method != 'fuzzy' %}hidden{% endif %}">
+                    <label for="id_match_confidence_threshold" class="block text-sm font-medium text-gray-700">Match Confidence Threshold</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <input type="number" step="0.01" min="0" max="1" id="id_match_confidence_threshold" name="match_confidence_threshold" 
+                              value="{{ id_config.match_confidence_threshold }}"
+                              class="focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-md sm:text-sm border-gray-300">
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">Value between 0.0 and 1.0 (higher values require more confidence)</p>
+                </div>
+                
+                <div id="custom_settings" class="{% if id_config.matching_method != 'custom' %}hidden{% endif %}">
+                    <label for="id_custom_matcher" class="block text-sm font-medium text-gray-700">Custom Matcher Code</label>
+                    <div class="mt-1">
+                        <textarea id="id_custom_matcher" name="custom_matcher" rows="4"
+                                 class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md">{{ id_config.custom_matcher }}</textarea>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">Python code to perform custom matching logic.</p>
+                </div>
+                
+                <div class="pt-5">
+                    <div class="flex justify-end">
+                        <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Save Identity Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Field Mappings
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Map fields from this data source to user profile attributes.
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'datasources:create_mapping' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Add Mapping
+            </a>
+        </div>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if mappings %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Source Field
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Profile Attribute
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mapping Type
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Key Field
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Priority
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Multiple Values
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Enabled
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for mapping in mappings %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ mapping.source_field.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ mapping.profile_attribute }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ mapping.get_mapping_type_display }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if mapping.is_key_field %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Yes
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                No
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ mapping.priority }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if mapping.is_multivalued %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                Yes
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                No
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if mapping.is_enabled %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Enabled
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Disabled
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'datasources:edit_mapping' datasource.id mapping.id %}" class="text-blue-600 hover:text-blue-900 mr-3">
+                                Edit
+                            </a>
+                            <a href="{% url 'datasources:delete_mapping' datasource.id mapping.id %}" class="text-red-600 hover:text-red-900">
+                                Delete
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-4 px-6 text-center">
+            <p class="text-sm text-gray-500">No field mappings configured yet.</p>
+            <p class="mt-1 text-sm text-gray-500">Add mappings to define how data from this source is integrated with user profiles.</p>
+            <div class="mt-4">
+                <a href="{% url 'datasources:create_mapping' datasource.id %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="-ml-1 mr-2 h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add First Mapping
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Key Mapping Information -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mt-6">
+    <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            About User Profile Integration
+        </h3>
+        <div class="mt-2 max-w-xl text-sm text-gray-500">
+            <p>
+                Profile integration connects data from this source to user profiles in the Hermes system.
+                Here's how it works:
+            </p>
+            <ul class="list-disc pl-5 mt-2 space-y-1">
+                <li>Each field mapping defines how a field from this data source is mapped to a user profile attribute</li>
+                <li><strong>Key fields</strong> are used to match records to existing user profiles</li>
+                <li>Multiple values (like multiple email addresses) can be stored for a single attribute</li>
+                <li>When conflicts occur between data sources, the source with the highest priority wins</li>
+                <li>All changes to user profile attributes are tracked for auditing</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show/hide settings based on matching method
+        const methodSelect = document.getElementById('id_matching_method');
+        const fuzzySettings = document.getElementById('fuzzy_settings');
+        const customSettings = document.getElementById('custom_settings');
+        
+        function updateVisibility() {
+            const method = methodSelect.value;
+            fuzzySettings.classList.toggle('hidden', method !== 'fuzzy');
+            customSettings.classList.toggle('hidden', method !== 'custom');
+        }
+        
+        methodSelect.addEventListener('change', updateVisibility);
+    });
+</script>
+{% endblock %}

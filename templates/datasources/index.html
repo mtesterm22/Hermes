@@ -48,53 +48,60 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for datasource in datasources %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">
-                            {% if datasource.type == 'csv' %}
-                            <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
-                                {{ datasource.name }}
-                            </a>
-                            {% else %}
-                            <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
-                                {{ datasource.name }}
-                            </a>
-                            {% endif %}
-                        </div>
-                        <div class="text-sm text-gray-500">
-                            {{ datasource.description|truncatechars:100 }}
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ datasource.get_type_display }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            {% if datasource.status == 'active' %}bg-green-100 text-green-800
-                            {% elif datasource.status == 'error' %}bg-red-100 text-red-800
-                            {% elif datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
-                            {% else %}bg-gray-100 text-gray-800{% endif %}">
-                            {{ datasource.get_status_display }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ datasource.last_sync|default:"Never" }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ datasource.created_by.username|default:"System" }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {% if datasource.type == 'csv' %}
-                        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
-                        <a href="{% url 'datasources:csv_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
-                        {% else %}
-                        <a href="{% url 'datasources:detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
-                        <a href="{% url 'datasources:update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
-                        {% endif %}
-                        <a href="{% url 'datasources:delete' datasource.id %}" class="text-red-600 hover:text-red-900">Delete</a>
-                    </td>
-                </tr>
-                {% endfor %}
+<tr>
+    <td class="px-6 py-4 whitespace-nowrap">
+        <div class="text-sm font-medium text-gray-900">
+            {% if datasource.type == 'csv' %}
+            <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% elif datasource.type == 'database' %}
+            <a href="{% url 'datasources:database_detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% else %}
+            <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% endif %}
+        </div>
+        <div class="text-sm text-gray-500">
+            {{ datasource.description|truncatechars:100 }}
+        </div>
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {{ datasource.get_type_display }}
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap">
+        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            {% if datasource.status == 'active' %}bg-green-100 text-green-800
+            {% elif datasource.status == 'error' %}bg-red-100 text-red-800
+            {% elif datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+            {% else %}bg-gray-100 text-gray-800{% endif %}">
+            {{ datasource.get_status_display }}
+        </span>
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {{ datasource.last_sync|default:"Never" }}
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+        {{ datasource.created_by.username|default:"System" }}
+    </td>
+    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        {% if datasource.type == 'csv' %}
+        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+        <a href="{% url 'datasources:csv_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+        {% elif datasource.type == 'database' %}
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+        <a href="{% url 'datasources:database_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+        {% else %}
+        <a href="{% url 'datasources:detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+        <a href="{% url 'datasources:update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+        {% endif %}
+        <a href="{% url 'datasources:delete' datasource.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+    </td>
+</tr>
+{% endfor %}
             </tbody>
         </table>
     </div>

@@ -286,101 +286,105 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Toggle connection selector based on checkbox
-        const createNewConnectionCheckbox = document.getElementById('{{ form.create_new_connection.id_for_label }}');
-        const existingConnectionSection = document.getElementById('existing-connection-section');
-        
-        function updateVisibility() {
-            if (createNewConnectionCheckbox.checked) {
-                existingConnectionSection.classList.add('hidden');
-            } else {
-                existingConnectionSection.classList.remove('hidden');
-            }
-        }
-        
-        if (createNewConnectionCheckbox && existingConnectionSection) {
-            createNewConnectionCheckbox.addEventListener('change', updateVisibility);
-            updateVisibility(); // Initial state
-        }
-        
-        // Connection dropdown change handler to reload the page with selected connection
-        const connectionSelect = document.getElementById('{{ form.connection.id_for_label }}');
-if (connectionSelect) {
-    connectionSelect.addEventListener('change', function() {
-        const connectionId = this.value;
-        if (connectionId) {
-            // Fetch tables for this connection via AJAX
-            fetch(`/datasources/connections/${connectionId}/tables/`)
-                .then(response => response.json())
-                .then(data => {
-                    // Update the tables dropdown if it exists
-                    const tableSelect = document.getElementById('table-list');
-                    if (tableSelect) {
-                        // Clear existing options
-                        tableSelect.innerHTML = '<option value="">-- Select a table --</option>';
-                        
-                        // Add options for each table
-                        if (data.tables && data.tables.length > 0) {
-                            data.tables.forEach(table => {
-                                const option = document.createElement('option');
-                                option.value = table;
-                                option.textContent = table;
-                                tableSelect.appendChild(option);
-                            });
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching tables:', error);
-                });
-        }
-    });
-        }
-        
-        // Restore form data if it exists
-        try {
-            const savedData = JSON.parse(localStorage.getItem('db_datasource_form'));
-            if (savedData) {
-                // Restore values
-                if (savedData.name) document.getElementById('{{ form.name.id_for_label }}').value = savedData.name;
-                if (savedData.description) document.getElementById('{{ form.description.id_for_label }}').value = savedData.description;
-                if (savedData.status) document.getElementById('{{ form.status.id_for_label }}').value = savedData.status;
-                if (savedData.query_timeout) document.getElementById('{{ form.query_timeout.id_for_label }}').value = savedData.query_timeout;
-                if (savedData.max_rows) document.getElementById('{{ form.max_rows.id_for_label }}').value = savedData.max_rows;
-                if (savedData.query_name) document.getElementById('{{ query_form.name.id_for_label }}').value = savedData.query_name;
-                if (savedData.query_description) document.getElementById('{{ query_form.description.id_for_label }}').value = savedData.query_description;
-                if (savedData.query_text) document.getElementById('{{ query_form.query_text.id_for_label }}').value = savedData.query_text;
-                if (savedData.query_type) document.getElementById('{{ query_form.query_type.id_for_label }}').value = savedData.query_type;
-                if (savedData.parameters) document.getElementById('{{ query_form.parameters.id_for_label }}').value = savedData.parameters;
-                if (savedData.is_enabled !== undefined) document.getElementById('{{ query_form.is_enabled.id_for_label }}').checked = savedData.is_enabled;
-            }
-        } catch (e) {
-            console.error("Error restoring form data", e);
-        }
-    });
+    // Toggle connection selector based on checkbox
+    const createNewConnectionCheckbox = document.getElementById('{{ form.create_new_connection.id_for_label }}');
+    const existingConnectionSection = document.getElementById('existing-connection-section');
     
-    // Function to insert selected table name into query text
-    function insertTableName() {
-        const tableSelect = document.getElementById('table-list');
-        const queryTextarea = document.getElementById('{{ query_form.query_text.id_for_label }}');
-        
-        if (tableSelect.value) {
-            // If textarea is empty, insert a SELECT * query
-            if (!queryTextarea.value.trim()) {
-                queryTextarea.value = `SELECT * FROM ${tableSelect.value} LIMIT 100`;
-            } else {
-                // Otherwise insert at cursor position
-                const cursorPos = queryTextarea.selectionStart;
-                const textBefore = queryTextarea.value.substring(0, cursorPos);
-                const textAfter = queryTextarea.value.substring(cursorPos);
-                queryTextarea.value = textBefore + tableSelect.value + textAfter;
-                
-                // Reset cursor position
-                queryTextarea.focus();
-                queryTextarea.selectionStart = cursorPos + tableSelect.value.length;
-                queryTextarea.selectionEnd = cursorPos + tableSelect.value.length;
-            }
+    function updateVisibility() {
+        if (createNewConnectionCheckbox.checked) {
+            existingConnectionSection.classList.add('hidden');
+        } else {
+            existingConnectionSection.classList.remove('hidden');
         }
     }
+    
+    if (createNewConnectionCheckbox && existingConnectionSection) {
+        createNewConnectionCheckbox.addEventListener('change', updateVisibility);
+        updateVisibility(); // Initial state
+    }
+    
+    // Connection dropdown change handler to reload the page with selected connection
+    const connectionSelect = document.getElementById('{{ form.connection.id_for_label }}');
+    if (connectionSelect) {
+        connectionSelect.addEventListener('change', function() {
+            const connectionId = this.value;
+            if (connectionId) {
+                // Fetch tables for this connection via AJAX
+                fetch(`/datasources/connections/${connectionId}/tables/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update the tables dropdown if it exists
+                        const tableSelect = document.getElementById('table-list');
+                        if (tableSelect) {
+                            // Clear existing options
+                            while (tableSelect.options.length > 1) {
+                                tableSelect.remove(1);
+                            }
+                            
+                            // Add options for each table
+                            if (data.tables && data.tables.length > 0) {
+                                data.tables.forEach(table => {
+                                    const option = document.createElement('option');
+                                    option.value = table;
+                                    option.textContent = table;
+                                    tableSelect.appendChild(option);
+                                });
+                                
+                                // Update status text
+                                const statusText = tableSelect.parentNode.querySelector('p');
+                                if (statusText) {
+                                    statusText.textContent = `${data.tables.length} tables available.`;
+                                }
+                            } else {
+                                // Update status text for no tables
+                                const statusText = tableSelect.parentNode.querySelector('p');
+                                if (statusText) {
+                                    statusText.textContent = 'No tables found in this database.';
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching tables:', error);
+                        const tableSelect = document.getElementById('table-list');
+                        if (tableSelect) {
+                            const statusText = tableSelect.parentNode.querySelector('p');
+                            if (statusText) {
+                                statusText.textContent = 'Error fetching tables. Please check your connection.';
+                                statusText.classList.add('text-red-500');
+                            }
+                        }
+                    });
+            }
+        });
+    }
+    
+    // REMOVED: localStorage restoration functionality
+    // This was causing the form to be pre-filled with previous values
+});
+
+// Function to insert selected table name into query text
+function insertTableName() {
+    const tableSelect = document.getElementById('table-list');
+    const queryTextarea = document.getElementById('{{ query_form.query_text.id_for_label }}');
+    
+    if (tableSelect.value) {
+        // If textarea is empty, insert a SELECT * query
+        if (!queryTextarea.value.trim()) {
+            queryTextarea.value = `SELECT * FROM ${tableSelect.value} LIMIT 100`;
+        } else {
+            // Otherwise insert at cursor position
+            const cursorPos = queryTextarea.selectionStart;
+            const textBefore = queryTextarea.value.substring(0, cursorPos);
+            const textAfter = queryTextarea.value.substring(cursorPos);
+            queryTextarea.value = textBefore + tableSelect.value + textAfter;
+            
+            // Reset cursor position
+            queryTextarea.focus();
+            queryTextarea.selectionStart = cursorPos + tableSelect.value.length;
+            queryTextarea.selectionEnd = cursorPos + tableSelect.value.length;
+        }
+    }
+}
 </script>
 {% endblock %}

@@ -8,7 +8,7 @@ leveraging the core database functionality.
 import logging
 import time
 from typing import Dict, Any, Optional, Tuple, List, Union
-from datetime import datetime
+import datetime
 
 from django.utils import timezone
 
@@ -153,12 +153,12 @@ class DatabaseConnector:
             logger.error(f"Error detecting fields: {str(e)}")
             raise
     
-    def _guess_field_type(self, value: Any) -> str:
+    def _guess_field_type(self, value):
         """
-        Guess the field type from a sample value.
+        Determine the field type based on the value.
         
         Args:
-            value: Sample value
+            value: Sample value to analyze
             
         Returns:
             Field type string
@@ -166,35 +166,40 @@ class DatabaseConnector:
         if value is None:
             return 'text'
         
+        # Use type to determine field type
+        import datetime
+        
         if isinstance(value, bool):
             return 'boolean'
-        
-        if isinstance(value, int):
+        elif isinstance(value, int):
             return 'integer'
-        
-        if isinstance(value, float):
+        elif isinstance(value, float):
             return 'float'
+        elif isinstance(value, datetime.date):
+            if isinstance(value, datetime.datetime):
+                return 'datetime'
+            else:
+                return 'date'
         
-        if isinstance(value, (datetime, timezone)):
-            return 'datetime'
-        
-        # Check if string might be a date/time
+        # If it's a string, try to detect if it might be a formatted date/datetime
         if isinstance(value, str):
-            # Try to detect if it's a date or datetime
-            from datetime import datetime
-            date_formats = [
-                '%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', 
-                '%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S'
-            ]
-            
-            for fmt in date_formats:
+            # Try various date formats
+            for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
                 try:
-                    datetime.strptime(value, fmt)
-                    return 'datetime' if '%H' in fmt else 'date'
+                    datetime.datetime.strptime(value, fmt)
+                    return 'date'
+                except ValueError:
+                    pass
+            
+            # Try datetime formats
+            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%d/%m/%Y %H:%M:%S']:
+                try:
+                    datetime.datetime.strptime(value, fmt)
+                    return 'datetime'
                 except ValueError:
                     pass
         
-        # Default to text
+        # Default to text for anything else
         return 'text'
     
     def _map_db_type_to_field_type(self, db_type: str) -> str:
@@ -449,7 +454,7 @@ class DatabaseConnector:
     
     def sync_data(self, triggered_by=None):
         """
-        Synchronize data from the database.
+        Synchronize data from the database with user profile integration.
         
         Args:
             triggered_by: User who triggered the sync
@@ -480,20 +485,57 @@ class DatabaseConnector:
             
             total_records = 0
             processed_queries = 0
+            created_count = 0
+            updated_count = 0
+            
+            # Set up profile integration service
+            from users.services.profile_integration import ProfileIntegrationService
+            profile_service = ProfileIntegrationService(self.datasource, self.sync)
             
             # Execute each query
             for query in queries:
                 if query.query_type.lower() == 'select':
-                    # For SELECT queries, get the results
+                    # For SELECT queries, get the results and process them
                     success, results, execution = self.execute_query(
                         query.query_text,
                         query.parameters,
                         create_execution_record=True
                     )
                     
-                    if success and results:
-                        if isinstance(results, list):
-                            total_records += len(results)
+                    if success and results and isinstance(results, list):
+                        # Process each record through profile integration
+                        processed_records = 0
+                        record_ids = []
+                        
+                        for record in results:
+                            # Extract record ID if available (for identity resolution)
+                            record_id = str(record.get('id', '')) if 'id' in record else None
+                            if record_id:
+                                record_ids.append(record_id)
+                            
+                            # Process the record through profile integration - in its own transaction
+                            try:
+                                person, created, changes = profile_service.process_record(record, record_id)
+                                
+                                if created:
+                                    created_count += 1
+                                elif changes > 0:
+                                    updated_count += 1
+                                    
+                                processed_records += 1
+                            except Exception as row_error:
+                                logger.error(f"Error processing record: {str(row_error)}")
+                                # Continue with next record
+                        
+                        # If we have record IDs, handle cleanup of missing attributes
+                        if record_ids and query.is_default:  # Only do cleanup for default query
+                            try:
+                                removed_count = profile_service.remove_missing_attributes(record_ids)
+                                logger.info(f"Removed {removed_count} attributes from profiles not in current dataset")
+                            except Exception as cleanup_error:
+                                logger.error(f"Error cleaning up missing attributes: {str(cleanup_error)}")
+                        
+                        total_records += processed_records
                         processed_queries += 1
                 else:
                     # For non-SELECT queries, just execute them
@@ -512,6 +554,8 @@ class DatabaseConnector:
             
             # Update sync record
             self.sync.records_processed = total_records
+            self.sync.records_created = created_count
+            self.sync.records_updated = updated_count
             self.sync.complete(status='success')
             
             # Update datasource

@@ -803,3 +803,37 @@ class DatabaseFieldManagementView(LoginRequiredMixin, View):
             'formset': formset,
             'queries': queries
         })
+
+class DatabaseDataSourceSyncView(LoginRequiredMixin, View):
+    """
+    View to trigger a manual sync of a database data source with profile integration
+    """
+    def post(self, request, pk):
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'database':
+            messages.error(request, _('This is not a database data source.'))
+            return redirect('datasources:index')
+        
+        try:
+            # Create connector and sync data with profile integration
+            connector = DatabaseConnector(datasource)
+            sync = connector.sync_data(triggered_by=request.user)
+            
+            if sync.status == 'success':
+                messages.success(
+                    request, 
+                    _('Data sync completed successfully. {processed} records processed, {created} profiles created, {updated} profiles updated.').format(
+                        processed=sync.records_processed,
+                        created=sync.records_created,
+                        updated=sync.records_updated
+                    )
+                )
+            else:
+                messages.error(request, _('Data sync failed: {}').format(sync.error_message))
+            
+        except Exception as e:
+            messages.error(request, _('Error syncing data: {}').format(str(e)))
+        
+        # Redirect back to detail page
+        return redirect('datasources:database_detail', pk=pk)
