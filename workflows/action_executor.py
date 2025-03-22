@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from .models import Action, ActionExecution, WorkflowExecution
 from .actions.database_action import DatabaseQueryAction
+from .actions.datasource_refresh_action import DataSourceRefreshAction
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class ActionExecutor:
     # Registry of action handlers by action type
     ACTION_HANDLERS = {
         'database_query': DatabaseQueryAction,
+        'datasource_refresh': DataSourceRefreshAction,
         # Add more action handlers here as they are implemented
     }
     

@@ -14,6 +14,7 @@ class Action(models.Model):
     """
     ACTION_TYPES = [
         ('database_query', _('Database Query')),
+        ('datasource_refresh', _('Data Source Refresh')),  # New action type
         ('csv_generate', _('Generate CSV')),
         ('csv_process', _('Process CSV')),
         ('ad_modify', _('Modify Active Directory')),

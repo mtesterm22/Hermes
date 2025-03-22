@@ -1,0 +1,359 @@
+{# templates/workflows/action_detail.html #}
+{% extends "base.html" %}
+{% load static %}
+{% load workflow_tags %}
+
+{% block title %}Hermes - {{ action.name }}<!-- Recent Executions of this Action -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Recent Executions
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Recent executions of this action.
+            </p>
+        </div>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if action_executions %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Time
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Duration
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Triggered By
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Details
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for execution in action_executions %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ execution.start_time }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ execution.status|status_color }}">
+                                        {{ execution.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% if execution.duration %}
+                                        {{ execution.duration.total_seconds|floatformat:2 }}s
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ execution.workflow_execution.triggered_by.username|default:"System" }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <a href="{% url 'workflows:execution_detail' execution.workflow_execution.id %}" class="text-blue-600 hover:text-blue-900">
+                                        View Details
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="py-4 px-6">
+                <p class="text-sm text-gray-500">No execution history for this action.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {{ action.name }}
+        </h2>
+        <div class="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                {{ action.get_action_type_display }}
+            </div>
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    {% if action.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ action.is_active|yesno:"Active,Inactive" }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+        {% if action.is_active %}
+        <form method="post" action="{% url 'workflows:run_action' action.id %}" class="ml-2">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Run Action
+            </button>
+        </form>
+        {% endif %}
+        {% if action.action_type == 'datasource_refresh' %}
+            <a href="{% url 'workflows:datasource_refresh_action_update' action.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Edit
+            </a>
+        {% else %}
+            <a href="{% url 'workflows:action_update' action.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Edit
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Action Details
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Details about this workflow action.
+        </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+        <dl class="sm:divide-y sm:divide-gray-200">
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Name</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ action.name }}</dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Description</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ action.description|default:"No description provided." }}</dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Action Type</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        {% if action.action_type == 'database_query' %}bg-indigo-100 text-indigo-800
+                        {% elif action.action_type == 'datasource_refresh' %}bg-blue-100 text-blue-800
+                        {% elif action.action_type == 'email_send' %}bg-green-100 text-green-800
+                        {% elif action.action_type == 'ad_modify' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ action.get_action_type_display }}
+                    </span>
+                </dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Status</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        {% if action.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                        {{ action.is_active|yesno:"Active,Inactive" }}
+                    </span>
+                </dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Created By</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ action.created_by.username|default:"System" }} on {{ action.created_at }}</dd>
+            </div>
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Last Modified</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ action.modified_by.username|default:"System" }} on {{ action.modified_at }}</dd>
+            </div>
+            {% if action.datasource %}
+            <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Associated Data Source</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    <a href="{% url 'datasources:detail' action.datasource.id %}" class="text-blue-600 hover:text-blue-900">
+                        {{ action.datasource.name }}
+                    </a>
+                </dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<!-- Action Parameters -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Action Parameters
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Configuration parameters for this action.
+        </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        {% if action.parameters %}
+            {% if action.action_type == 'datasource_refresh' %}
+                <!-- Specialized display for Data Source Refresh action -->
+                <div class="space-y-6">
+                    <!-- Data Sources -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900">Data Sources to Refresh</h4>
+                        <div class="mt-2">
+                                                            {% if action.parameters.datasource_ids %}
+                                <ul class="mt-1 text-sm text-gray-600 list-disc pl-5">
+                                    {% for ds_id in action.parameters.datasource_ids %}
+                                        <li>
+                                            {% if datasources %}
+                                                {% with datasource=datasources|get_item:ds_id %}
+                                                    {% if datasource %}
+                                                        <a href="{% url 'datasources:detail' ds_id %}" class="text-blue-600 hover:text-blue-900">
+                                                            {{ datasource.name }}
+                                                        </a>
+                                                    {% else %}
+                                                        Data Source ID: {{ ds_id }} (Not Found)
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                Data Source ID: {{ ds_id }}
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% elif action.parameters.datasource_id %}
+                                {% if datasources %}
+                                    {% with datasource=datasources|get_item:action.parameters.datasource_id %}
+                                        {% if datasource %}
+                                            <a href="{% url 'datasources:detail' action.parameters.datasource_id %}" class="text-blue-600 hover:text-blue-900">
+                                                {{ datasource.name }}
+                                            </a>
+                                        {% else %}
+                                            Data Source ID: {{ action.parameters.datasource_id }} (Not Found)
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    Data Source ID: {{ action.parameters.datasource_id }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-500">No data sources specified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Execution Options -->
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900">Execution Options</h4>
+                        <ul class="mt-1 text-sm text-gray-600 list-disc pl-5">
+                            <li>Wait for completion: {{ action.parameters.wait_for_completion|yesno:"Yes,No" }}</li>
+                            <li>Timeout: {{ action.parameters.timeout|default:"60" }} seconds</li>
+                        </ul>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Generic display for other action types -->
+                <div class="bg-gray-50 rounded-md p-4 font-mono text-sm overflow-x-auto">
+                    {{ action.parameters|pprint }}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-sm text-gray-500">No parameters defined for this action.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Workflows using this action -->
+<div class="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+        <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+                Workflows Using This Action
+            </h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                Workflows that use this action.
+            </p>
+        </div>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if workflows %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Workflow
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Step
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Last Execution
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for workflow_action in workflows %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <a href="{% url 'workflows:detail' workflow_action.workflow.id %}" class="text-blue-600 hover:text-blue-900">
+                                            {{ workflow_action.workflow.name }}
+                                        </a>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    Step {{ workflow_action.sequence }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                        {% if workflow_action.workflow.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{ workflow_action.workflow.is_active|yesno:"Active,Inactive" }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% with last_execution=workflow_action.executions.last %}
+                                        {% if last_execution %}
+                                            <a href="{% url 'workflows:execution_detail' last_execution.workflow_execution.id %}" class="text-blue-600 hover:text-blue-900">
+                                                {{ last_execution.start_time|date:"M d, Y H:i" }}
+                                            </a>
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                {% if last_execution.status == 'success' %}bg-green-100 text-green-800
+                                                {% elif last_execution.status == 'error' %}bg-red-100 text-red-800
+                                                {% elif last_execution.status == 'running' %}bg-blue-100 text-blue-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ last_execution.get_status_display }}
+                                            </span>
+                                        {% else %}
+                                            Never executed
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="py-4 px-6">
+                <p class="text-sm text-gray-500">This action is not currently used in any workflows.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

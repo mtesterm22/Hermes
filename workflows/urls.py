@@ -1,6 +1,7 @@
-# workflows/urls.py
+# Updated workflows/urls.py
 from django.urls import path
 from . import views
+from . import action_views  # Import our new action views
 
 app_name = 'workflows'
 
@@ -20,6 +21,14 @@ urlpatterns = [
     
     # Actions
     path('actions/', views.ActionListView.as_view(), name='actions'),
+    path('actions/type-select/', action_views.ActionTypeSelectView.as_view(), name='action_type_select'),
+    path('actions/<int:pk>/run/', action_views.RunActionView.as_view(), name='run_action'),
+    
+    # Specific Action Types
+    path('actions/create/datasource-refresh/', action_views.DataSourceRefreshActionCreateView.as_view(), name='datasource_refresh_action_create'),
+    path('actions/<int:pk>/update/datasource-refresh/', action_views.DataSourceRefreshActionUpdateView.as_view(), name='datasource_refresh_action_update'),
+    
+    # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),
     path('actions/<int:pk>/', views.ActionDetailView.as_view(), name='action_detail'),
     path('actions/<int:pk>/update/', views.ActionUpdateView.as_view(), name='action_update'),

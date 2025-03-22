@@ -1,0 +1,281 @@
+{# templates/workflows/datasource_refresh_action_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Data Source Refresh Action{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Data Source Refresh Action
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define general information about this action.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Active field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">Active</label>
+                                    <p class="text-gray-500">Enable or disable this action.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Data Source Selection</h3>
+                        <p class="mt-1 text-sm text-gray-500">Select the data source(s) to refresh.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Single Data Source Selection -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.single_datasource.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Single Data Source
+                            </label>
+                            <div class="mt-1">
+                                {{ form.single_datasource }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.single_datasource.help_text }}
+                            </p>
+                            {% if form.single_datasource.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.single_datasource.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="sm:col-span-6">
+                            <div class="relative">
+                                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                                    <div class="w-full border-t border-gray-300"></div>
+                                </div>
+                                <div class="relative flex justify-center">
+                                    <span class="px-2 bg-white text-sm text-gray-500">OR</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Multiple Data Sources Selection -->
+                        <div class="sm:col-span-6">
+                            <fieldset>
+                                <legend class="text-sm font-medium text-gray-700">{{ form.multiple_datasources.label }}</legend>
+                                <div class="mt-2 bg-white rounded-md -space-y-px">
+                                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                        {% for checkbox in form.multiple_datasources %}
+                                            <div class="relative flex items-start py-2">
+                                                <div class="flex items-center h-5">
+                                                    {{ checkbox.tag }}
+                                                </div>
+                                                <div class="ml-3 text-sm">
+                                                    <label for="{{ checkbox.id_for_label }}" class="font-medium text-gray-700">{{ checkbox.choice_label }}</label>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p class="mt-2 text-sm text-gray-500">
+                                    {{ form.multiple_datasources.help_text }}
+                                </p>
+                                {% if form.multiple_datasources.errors %}
+                                <p class="mt-2 text-sm text-red-600">
+                                    {{ form.multiple_datasources.errors|join:", " }}
+                                </p>
+                                {% endif %}
+                            </fieldset>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Execution Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure how the data source refresh should be executed.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Wait for Completion -->
+                        <div class="sm:col-span-6">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.wait_for_completion }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.wait_for_completion.id_for_label }}" class="font-medium text-gray-700">{{ form.wait_for_completion.label }}</label>
+                                    <p class="text-gray-500">{{ form.wait_for_completion.help_text }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Timeout -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.timeout.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.timeout.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.timeout }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.timeout.help_text }}
+                            </p>
+                            {% if form.timeout.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.timeout.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'workflows:actions' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Enable/disable fieldsets based on selections
+        const singleSelect = document.getElementById('{{ form.single_datasource.id_for_label }}');
+        const multipleCheckboxes = document.querySelectorAll('input[name="{{ form.multiple_datasources.html_name }}"]');
+        
+        function updateMultipleCheckboxes() {
+            // If a single data source is selected, disable all checkboxes for that same data source
+            const singleValue = singleSelect.value;
+            
+            if (singleValue) {
+                // Enable all checkboxes first
+                multipleCheckboxes.forEach(cb => {
+                    cb.disabled = false;
+                    cb.parentNode.parentNode.classList.remove('opacity-50');
+                });
+                
+                // Then disable the one that matches the single selection
+                multipleCheckboxes.forEach(cb => {
+                    if (cb.value === singleValue) {
+                        cb.disabled = true;
+                        cb.checked = false;
+                        cb.parentNode.parentNode.classList.add('opacity-50');
+                    }
+                });
+            } else {
+                // Enable all checkboxes if no single selection
+                multipleCheckboxes.forEach(cb => {
+                    cb.disabled = false;
+                    cb.parentNode.parentNode.classList.remove('opacity-50');
+                });
+            }
+        }
+        
+        function updateSingleSelect() {
+            // Check which checkboxes are selected
+            const checkedValues = Array.from(multipleCheckboxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+                
+            if (checkedValues.length > 0) {
+                // If any checkbox is selected, disable the matching option in the single select
+                const options = singleSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (checkedValues.includes(options[i].value)) {
+                        options[i].disabled = true;
+                    } else {
+                        options[i].disabled = false;
+                    }
+                }
+                
+                // If the currently selected option is now disabled, reset the selection
+                if (singleSelect.value && checkedValues.includes(singleSelect.value)) {
+                    singleSelect.value = '';
+                }
+            } else {
+                // Enable all options if no checkbox is selected
+                const options = singleSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    options[i].disabled = false;
+                }
+            }
+        }
+        
+        // Add event listeners
+        if (singleSelect) {
+            singleSelect.addEventListener('change', updateMultipleCheckboxes);
+            updateMultipleCheckboxes(); // Initial state
+        }
+        
+        multipleCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateSingleSelect);
+        });
+        updateSingleSelect(); // Initial state
+    });
+</script>
+{% endblock %}
