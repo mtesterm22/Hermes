@@ -26,6 +26,7 @@ venv.bak/
 # Database
 *.sqlite3
 *.db
+*.csv
 
 # OS generated files
 .DS_Store
