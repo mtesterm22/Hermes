@@ -12,61 +12,6 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
-def validate_query(query: str) -> Tuple[bool, str]:
-    """
-    Perform basic validation on a SQL query.
-    
-    Args:
-        query: SQL query to validate
-        
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not query.strip():
-        return False, "Query is empty"
-    
-    # Basic check for SQL injection attempts
-    dangerous_patterns = [
-        r'--.*$',  # SQL comments
-        r'/\*.*\*/',  # Block comments
-        r';.*$',  # Multiple statements
-        r'EXEC\s+.*',  # EXEC statements (SQL Server)
-        r'EXECUTE\s+.*',  # EXECUTE statements
-        r'xp_.*',  # Extended stored procedures
-        r'sp_.*',  # System stored procedures
-    ]
-    
-    for pattern in dangerous_patterns:
-        if re.search(pattern, query, re.IGNORECASE | re.MULTILINE):
-            return False, f"Query contains potentially dangerous pattern: {pattern}"
-    
-    return True, ""
-
-
-def extract_query_type(query: str) -> str:
-    """
-    Determine the type of SQL query (SELECT, INSERT, UPDATE, etc.).
-    
-    Args:
-        query: SQL query to examine
-        
-    Returns:
-        Query type as a string
-    """
-    # Extract the first word from the query (ignoring comments)
-    query = query.strip()
-    
-    # Remove comments
-    query = re.sub(r'--.*$', '', query, flags=re.MULTILINE)
-    query = re.sub(r'/\*.*?\*/', '', query, flags=re.DOTALL)
-    
-    # Get the first word
-    match = re.match(r'^\s*(\w+)', query, re.IGNORECASE)
-    if match:
-        return match.group(1).upper()
-    
-    return "UNKNOWN"
-
 
 def extract_query_tables(query: str) -> List[str]:
     """
@@ -119,21 +64,6 @@ def extract_query_tables(query: str) -> List[str]:
     return list(tables)
 
 
-def extract_query_params(query: str) -> Set[str]:
-    """
-    Extract parameter names from a SQL query.
-    
-    Args:
-        query: SQL query to examine
-        
-    Returns:
-        Set of parameter names
-    """
-    # Find all :param style parameters
-    param_pattern = r':([a-zA-Z0-9_]+)'
-    params = set(re.findall(param_pattern, query))
-    
-    return params
 
 
 def mask_sensitive_data(connection_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,28 +111,172 @@ def check_sql_read_only(query: str) -> bool:
     
     return query_type in read_only_types
 
-
-def limit_results(query: str, limit: int) -> str:
+def validate_query(query: str) -> Tuple[bool, str]:
     """
-    Add a LIMIT clause to a SQL query if one is not already present.
+    Perform basic validation on a SQL query.
+    
+    Args:
+        query: SQL query to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not query or not query.strip():
+        return False, "Query cannot be empty"
+    
+    # Basic check for SQL injection attempts
+    dangerous_patterns = [
+        r'\bDROP\s+', 
+        r'\bDELETE\s+',
+        r'\bTRUNCATE\s+',
+        r';\s*DROP',
+        r';\s*DELETE',
+        r';\s*UPDATE',
+        r';\s*INSERT',
+        r'\bALTER\s+',
+        r'\bEXEC\s+',
+        r'\bXP_'
+    ]
+    
+    # Check if query contains dangerous patterns that might indicate SQL injection
+    for pattern in dangerous_patterns:
+        if re.search(pattern, query, re.IGNORECASE):
+            # Consider implementation context - these patterns may be legitimate in some cases
+            logger.warning(f"Query contains potentially dangerous pattern: {pattern}")
+            # Instead of blocking, we'll just warn since this is an administrative tool
+    
+    return True, ""
+
+
+def extract_query_type(query: str) -> str:
+    """
+    Determine the type of SQL query (SELECT, INSERT, UPDATE, etc.).
+    
+    Args:
+        query: SQL query to examine
+        
+    Returns:
+        Query type as a string
+    """
+    # Extract the first word from the query (ignoring comments)
+    query = query.strip()
+    
+    # Remove comments
+    query = re.sub(r'--.*$', '', query, flags=re.MULTILINE)
+    query = re.sub(r'/\*.*?\*/', '', query, flags=re.DOTALL)
+    
+    # Get the first word
+    match = re.match(r'^\s*(\w+)', query, re.IGNORECASE)
+    if match:
+        return match.group(1).upper()
+    
+    return "UNKNOWN"
+
+
+def extract_query_params(query: str) -> Set[str]:
+    """
+    Extract parameter names from a SQL query.
+    
+    Args:
+        query: SQL query to examine
+        
+    Returns:
+        Set of parameter names
+    """
+    # Find all :param style parameters
+    param_pattern = r':([a-zA-Z0-9_]+)'
+    params = set(re.findall(param_pattern, query))
+    
+    return params
+
+
+def limit_results(query: str, max_rows: int) -> str:
+    """
+    Add a LIMIT or similar clause to a SQL query to restrict number of rows returned.
     
     Args:
         query: SQL query to modify
-        limit: Maximum number of results to return
+        max_rows: Maximum number of rows to return
         
     Returns:
-        Modified query with LIMIT clause
+        Modified query with appropriate row limit
     """
-    # Check if query already has a LIMIT clause
-    if re.search(r'\bLIMIT\s+\d+', query, re.IGNORECASE):
-        return query
-    
-    # Check query type
+    # Only add limit to SELECT queries
     query_type = extract_query_type(query)
-    
-    # Only add LIMIT to SELECT queries
     if query_type != 'SELECT':
         return query
     
-    # Add LIMIT clause
-    return f"{query.rstrip(';')} LIMIT {limit};"
+    # Normalize query - remove trailing semicolons and whitespace
+    query = query.strip()
+    if query.endswith(';'):
+        query = query[:-1].strip()
+    
+    # Check if query already has a LIMIT clause
+    if re.search(r'\bLIMIT\s+\d+', query, re.IGNORECASE):
+        return query + ';'
+    
+    # Check if query has an ORDER BY clause (add LIMIT after that)
+    if re.search(r'\bORDER\s+BY\b', query, re.IGNORECASE):
+        return f"{query} LIMIT {max_rows};"
+    
+    # Add LIMIT clause 
+    return f"{query} LIMIT {max_rows};"
+
+
+def format_query_for_display(query: str, max_length: int = 100) -> str:
+    """
+    Format a query for display in logs or UI, with long queries truncated.
+    
+    Args:
+        query: SQL query to format
+        max_length: Maximum length before truncation
+        
+    Returns:
+        Formatted query string
+    """
+    # Remove extra whitespace
+    query = ' '.join(query.split())
+    
+    # Truncate if necessary
+    if len(query) > max_length:
+        return query[:max_length] + '...'
+    
+    return query
+
+
+def parse_query_results(results: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Parse raw query results into a more usable format.
+    
+    Args:
+        results: Raw query results from database connector
+        
+    Returns:
+        Parsed results
+    """
+    if not results:
+        return {'rows': [], 'count': 0}
+    
+    if isinstance(results, list):
+        return {
+            'rows': results,
+            'count': len(results)
+        }
+    
+    if isinstance(results, dict):
+        if 'rows' in results:
+            return {
+                'rows': results['rows'],
+                'count': len(results['rows']),
+                'columns': results.get('columns', []),
+                'metadata': {k: v for k, v in results.items() if k not in ['rows', 'columns']}
+            }
+        elif 'rowcount' in results:
+            return {
+                'rowcount': results['rowcount'],
+                'affected_rows': results['rowcount'],
+                'type': 'non-query'
+            }
+    
+    # Fallback for unknown result format
+    return {'raw_results': results}

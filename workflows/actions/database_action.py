@@ -90,6 +90,7 @@ class DatabaseQueryAction:
             logger.info(f"Executing {query_type} query for action {self.action.name}")
             
             # Get data source
+            data_source = None
             if self.action.datasource:
                 # Use the action's data source
                 data_source = self.action.datasource
@@ -103,32 +104,33 @@ class DatabaseQueryAction:
                         error = f"Data source with ID {data_source_id} not found"
                         action_execution.complete('error', error_message=error)
                         return False, {"error": error}
-                else:
-                    error = "No data source specified for database query action"
-                    action_execution.complete('error', error_message=error)
-                    return False, {"error": error}
+            
+            if not data_source:
+                error = "No data source specified for database query action"
+                action_execution.complete('error', error_message=error)
+                return False, {"error": error}
             
             # Get connection parameters from the data source
             connection_info = {
-                'type': params.get('db_type', 'postgresql'),  # Default to PostgreSQL
-                'host': params.get('host', 'localhost'),
-                'port': params.get('port', 5432),
-                'database': params.get('database', ''),
-                'user': params.get('user', ''),
-                'password': params.get('password', ''),
+                'type': data_source.type if hasattr(data_source, 'type') else 'postgresql',
+                'host': data_source.host if hasattr(data_source, 'host') else 'localhost',
+                'port': data_source.port if hasattr(data_source, 'port') else 5432,
+                'database': data_source.database if hasattr(data_source, 'database') else '',
+                'user': data_source.username if hasattr(data_source, 'username') else '',
+                'password': data_source.password if hasattr(data_source, 'password') else '',
             }
             
-            # If the data source has connection string, parse it
-            if hasattr(data_source, 'connection_string') and data_source.connection_string:
-                from core.database.connectors import parse_connection_string
-                connection_info.update(parse_connection_string(data_source.connection_string))
+            # Add any database-specific options
+            if hasattr(data_source, 'options') and data_source.options:
+                if isinstance(data_source.options, dict):
+                    connection_info.update(data_source.options)
+                    
+            # Extract query parameters from execution context
+            query_params = {}
             
-            # If the data source has credentials, use them
-            if hasattr(data_source, 'credentials') and data_source.credentials:
-                connection_info.update(data_source.credentials)
-            
-            # Get query parameters
-            query_params = params.get('query_params', {})
+            # Include any static parameters defined in the action
+            if params.get('query_params') and isinstance(params.get('query_params'), dict):
+                query_params.update(params.get('query_params'))
             
             # Process any parameter substitutions from workflow context
             for key, value in execution_params.items():
@@ -136,9 +138,16 @@ class DatabaseQueryAction:
                     param_name = key[6:]  # Remove 'param_' prefix
                     query_params[param_name] = value
             
+            # Get database connector and execute the query
+            connector = get_connector(connection_info)
+            if not connector:
+                error = f"Failed to create database connector for {data_source.name}"
+                action_execution.complete('error', error_message=error)
+                return False, {"error": error}
+            
             # Execute the query
             success, results, error = execute_query(
-                connection_info,
+                connector,
                 query,
                 query_params,
                 timeout
@@ -151,13 +160,6 @@ class DatabaseQueryAction:
             # Format the results
             format_options = params.get('format_options', {})
             formatted_results = format_results(results, result_format, format_options)
-            
-            # Handle result storage if specified
-            if params.get('store_results', False):
-                store_path = params.get('result_path', '')
-                if store_path:
-                    from core.database.formatters import write_to_file
-                    write_to_file(results, store_path, result_format, format_options)
             
             # Prepare result data
             execution_time = time.time() - start_time

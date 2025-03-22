@@ -1,0 +1,145 @@
+{# templates/workflows/action_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Action{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Action
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define general information about this action.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Active field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">Active</label>
+                                    <p class="text-gray-500">Enable or disable this action.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Action Type field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.action_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Action Type
+                            </label>
+                            <div class="mt-1">
+                                {{ form.action_type }}
+                            </div>
+                            {% if form.action_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.action_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Data Source field (if applicable) -->
+                        {% if form.datasource %}
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.datasource.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Data Source
+                            </label>
+                            <div class="mt-1">
+                                {{ form.datasource }}
+                            </div>
+                            {% if form.datasource.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.datasource.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Parameters field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.parameters.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Parameters
+                            </label>
+                            <div class="mt-1">
+                                {{ form.parameters }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                Enter parameters as a JSON object.
+                            </p>
+                            {% if form.parameters.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.parameters.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'workflows:actions' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

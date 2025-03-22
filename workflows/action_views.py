@@ -11,13 +11,13 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.views.generic import CreateView, UpdateView, FormView, TemplateView, DetailView
 from django.utils.translation import gettext_lazy as _
-from workflows.forms import DataSourceRefreshActionForm, ActionTypeForm
+from workflows.forms import DataSourceRefreshActionForm, ActionTypeForm, DatabaseQueryActionForm
 from django.views import View
 from django.utils import timezone
 from django.db import transaction
 import traceback
 import json
-from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow
+from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow, DataSource
 from workflows.action_executor import ActionExecutor
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
@@ -253,3 +253,52 @@ class RunActionView(LoginRequiredMixin, View):
             messages.error(request, _('Error running action: {} (See server logs for details)').format(str(e)))
         
         return redirect('workflows:action_detail', pk=pk)
+
+class DatabaseQueryActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new Database Query action.
+    """
+    model = Action
+    form_class = DatabaseQueryActionForm
+    template_name = 'workflows/database_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Database Query action created successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources for context
+        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
+        
+        return context
+
+class DatabaseQueryActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating a Database Query action.
+    """
+    model = Action
+    form_class = DatabaseQueryActionForm
+    template_name = 'workflows/database_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Database Query action updated successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources for context
+        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
+        
+        return context

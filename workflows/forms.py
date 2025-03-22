@@ -220,3 +220,137 @@ class ScheduleForm(forms.ModelForm):
                 'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md font-mono'
             }),
         }
+
+class DatabaseQueryActionForm(forms.ModelForm):
+    """
+    Form for the Database Query action.
+    """
+    
+    # Database connection fields
+    datasource = forms.ModelChoiceField(
+        queryset=DataSource.objects.filter(type='database').order_by('name'),
+        required=True,
+        label=_('Database Source'),
+        help_text=_('Select a database source to query'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    query = forms.CharField(
+        required=True,
+        widget=forms.Textarea(attrs={
+            'rows': 8,
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md font-mono',
+            'placeholder': 'SELECT * FROM users WHERE active = true'
+        }),
+        label=_('SQL Query'),
+        help_text=_('The SQL query to execute')
+    )
+    
+    # Execution options
+    timeout = forms.IntegerField(
+        required=False,
+        initial=30,
+        min_value=1,
+        max_value=300,
+        label=_('Timeout (seconds)'),
+        help_text=_('Maximum time to wait for query execution (1-300 seconds)'),
+        widget=forms.NumberInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    max_rows = forms.IntegerField(
+        required=False,
+        initial=1000,
+        min_value=1,
+        max_value=10000,
+        label=_('Maximum Rows'),
+        help_text=_('Maximum number of rows to return (1-10000)'),
+        widget=forms.NumberInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    store_results = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_('Store Results'),
+        help_text=_('Save the query results for later use in the workflow'),
+        widget=forms.CheckboxInput(attrs={
+            'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+        })
+    )
+    
+    result_format = forms.ChoiceField(
+        choices=[
+            ('json', _('JSON')),
+            ('csv', _('CSV')),
+            ('dict', _('Python Dictionary')),
+        ],
+        initial='json',
+        required=False,
+        label=_('Result Format'),
+        help_text=_('Format for the query results'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    class Meta:
+        model = Action
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+            }),
+        }
+    
+    def clean_query(self):
+        """Validate the SQL query."""
+        query = self.cleaned_data.get('query')
+        if not query:
+            raise forms.ValidationError(_('Query is required'))
+        
+        # Use the utility function to validate the query
+        from core.database.utils import validate_query
+        is_valid, error_message = validate_query(query)
+        
+        if not is_valid:
+            raise forms.ValidationError(error_message)
+        
+        return query
+    
+    def save(self, commit=True):
+        action = super().save(commit=False)
+        
+        # Set the action type
+        action.action_type = 'database_query'
+        
+        # Set the selected datasource
+        action.datasource = self.cleaned_data.get('datasource')
+        
+        # Prepare parameters
+        params = {
+            'query': self.cleaned_data.get('query'),
+            'timeout': self.cleaned_data.get('timeout', 30),
+            'max_rows': self.cleaned_data.get('max_rows', 1000),
+            'store_results': self.cleaned_data.get('store_results', False),
+            'result_format': self.cleaned_data.get('result_format', 'json'),
+        }
+        
+        # Save parameters to the action
+        action.parameters = params
+        
+        if commit:
+            action.save()
+            
+        return actions

@@ -27,6 +27,8 @@ urlpatterns = [
     # Specific Action Types
     path('actions/create/datasource-refresh/', action_views.DataSourceRefreshActionCreateView.as_view(), name='datasource_refresh_action_create'),
     path('actions/<int:pk>/update/datasource-refresh/', action_views.DataSourceRefreshActionUpdateView.as_view(), name='datasource_refresh_action_update'),
+    path('actions/create/database-query/', action_views.DatabaseQueryActionCreateView.as_view(), name='database_query_action_create'),
+    path('actions/<int:pk>/update/database-query/', action_views.DatabaseQueryActionUpdateView.as_view(), name='database_query_action_update'),
     
     # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),
