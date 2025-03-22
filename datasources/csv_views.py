@@ -12,6 +12,7 @@ from .models import DataSource, DataSourceField, DataSourceSync
 from .csv_models import CSVDataSource, CSVFileUpload
 from .forms import CSVDataSourceForm, CSVSettingsForm, CSVFileUploadForm, DataSourceFieldFormSet
 from .connectors.csv_connector import CSVConnector
+from .tasks import sync_datasource
 import csv
 
 class CSVDataSourceCreateView(LoginRequiredMixin, CreateView):
@@ -200,6 +201,11 @@ class CSVDataSourceSyncView(LoginRequiredMixin, View):
             messages.error(request, _('This is not a CSV data source.'))
             return redirect('datasources:index')
         
+        # Check if already syncing
+        if datasource.is_syncing():
+            messages.warning(request, _('This data source is already being synchronized.'))
+            return redirect('datasources:csv_detail', pk=pk)
+        
         # Create a sync record
         sync = None
         
@@ -210,6 +216,10 @@ class CSVDataSourceSyncView(LoginRequiredMixin, View):
                 triggered_by=request.user,
                 status='running'
             )
+
+            # Queue the sync task
+            sync_datasource.delay(datasource.id, request.user.id)
+            messages.success(request, _('Data synchronization has been queued and will start shortly.'))
             
             # Get the CSV connector
             connector = CSVConnector(datasource)

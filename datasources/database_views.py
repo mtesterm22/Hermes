@@ -22,6 +22,7 @@ from .models import DataSource, DataSourceField, DataSourceSync
 from .database_models import DatabaseDataSource, DatabaseQuery, DatabaseQueryExecution, DatabaseConnection, DatabaseQuery  
 from .forms import DatabaseDataSourceForm, DatabaseSettingsForm, DatabaseQueryForm, DatabaseConnectionForm, DataSourceBaseForm
 from .connectors.database_connector import DatabaseConnector
+from .tasks import sync_datasource
 
 logger = logging.getLogger(__name__)
 
@@ -515,6 +516,15 @@ class DatabaseDataSourceSyncView(LoginRequiredMixin, View):
         if datasource.type != 'database':
             messages.error(request, _('This is not a database data source.'))
             return redirect('datasources:index')
+        
+        # Check if already syncing
+        if datasource.is_syncing():
+            messages.warning(request, _('This data source is already being synchronized.'))
+            return redirect('datasources:database_detail', pk=pk)
+
+        sync_datasource.delay(datasource.id, request.user.id)
+        
+        messages.success(request, _('Data synchronization has been queued and will start shortly.'))
         
         try:
             # Create connector and sync data

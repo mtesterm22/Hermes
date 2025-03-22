@@ -61,6 +61,16 @@ class DataSource(models.Model):
         self.sync_count += 1
         self.save(update_fields=['last_sync', 'sync_count'])
 
+    def is_syncing(self):
+        """Check if this data source is currently syncing."""
+        return self.syncs.filter(status='running').exists()
+
+    def lock_for_sync(self):
+        """Attempt to lock this data source for syncing."""
+        if self.is_syncing():
+            return False
+        return True
+
 class DataSourceField(models.Model):
     """
     Model for tracking fields/columns in data sources
