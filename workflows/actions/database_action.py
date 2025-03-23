@@ -1,5 +1,3 @@
-
-
 """
 Database query action for workflows.
 
@@ -10,6 +8,7 @@ leveraging the core database functionality.
 import logging
 import json
 import time
+import traceback
 from typing import Dict, Any, Optional, Tuple, List
 
 from django.utils import timezone
@@ -75,14 +74,6 @@ class DatabaseQueryAction:
                 action_execution.complete('error', error_message=error_message)
                 return False, {"error": error_message}
             
-            # Apply row limit if specified
-            if max_rows > 0:
-                query = limit_results(query, max_rows)
-            
-            # Log execution
-            query_type = extract_query_type(query)
-            logger.info(f"Executing {query_type} query for action {self.action.name}")
-            
             # Get database connection from ID
             connection_id = params.get('connection_id')
             if not connection_id:
@@ -93,6 +84,11 @@ class DatabaseQueryAction:
             try:
                 from datasources.connection_models import DatabaseConnection
                 connection = DatabaseConnection.objects.get(id=connection_id)
+                
+                # Log the database type for debugging
+                db_type = connection.db_type.lower() if hasattr(connection, 'db_type') else 'unknown'
+                logger.info(f"Using database connection of type: {db_type}")
+                
             except DatabaseConnection.DoesNotExist:
                 error = f"Database connection with ID {connection_id} not found"
                 action_execution.complete('error', error_message=error)
@@ -100,6 +96,29 @@ class DatabaseQueryAction:
             
             # Get connection info from the database connection
             connection_info = connection.get_connection_info()
+            
+            # Ensure the type is set correctly
+            if 'type' not in connection_info or not connection_info['type']:
+                if hasattr(connection, 'db_type') and connection.db_type:
+                    connection_info['type'] = connection.db_type.lower()
+                else:
+                    error = "Database type not specified in the connection"
+                    action_execution.complete('error', error_message=error)
+                    return False, {"error": error}
+                    
+            # Debug connection info
+            logger.debug(f"Connection info: {connection_info}")
+            print(f"Connection type: {connection_info.get('type')}")
+            print(f"Password included: {'password' in connection_info}")
+            
+            # Log execution
+            query_type = extract_query_type(query)
+            logger.info(f"Executing {query_type} query for action {self.action.name}")
+            
+            # Apply row limit based on database type
+            original_query = query
+            if max_rows > 0 and connection_info.get('type') != 'oracle':
+                query = limit_results(query, max_rows)
             
             # Extract query parameters from execution context
             query_params = {}
@@ -114,14 +133,67 @@ class DatabaseQueryAction:
                     param_name = key[6:]  # Remove 'param_' prefix
                     query_params[param_name] = value
             
-            # Execute the query
-            logger.info(f"Executing query using connection {connection.name}")
-            success, results, error = execute_query(
-                connection_info,
-                query,
-                query_params,
-                timeout
-            )
+            # Use type-specific connector if needed
+            if connection_info.get('type') == 'oracle':
+                try:
+                    # Import the Oracle connector directly
+                    from core.database.oracle_connector import OracleConnector
+                    
+                    # Create the connector
+                    connector = OracleConnector(connection_info)
+                    
+                    # Test the connection
+                    test_success, test_message = connector.test_connection()
+                    if not test_success:
+                        error = f"Oracle connection test failed: {test_message}"
+                        logger.error(error)
+                        action_execution.complete('error', error_message=error)
+                        return False, {"error": error}
+                    
+                    # Prepare the query for Oracle
+                    oracle_query = original_query.strip()
+                    
+                    # Remove trailing semicolon if it exists
+                    if oracle_query.endswith(';'):
+                        oracle_query = oracle_query[:-1].strip()
+                    
+                    # Apply Oracle-specific row limit if needed
+                    if max_rows > 0:
+                        # Check if query already has ROWNUM or FETCH FIRST
+                        if 'rownum' not in oracle_query.lower() and 'fetch first' not in oracle_query.lower():
+                            # Use appropriate limit syntax based on query structure
+                            if 'where' in oracle_query.lower():
+                                oracle_query = f"{oracle_query} AND ROWNUM <= {max_rows}"
+                            else:
+                                oracle_query = f"{oracle_query} WHERE ROWNUM <= {max_rows}"
+                    
+                    # Execute query using the Oracle connector
+                    logger.info(f"Executing Oracle query: {oracle_query[:100]}...")
+                    success, results, error = connector.execute_query(
+                        oracle_query,
+                        query_params,
+                        timeout
+                    )
+                except Exception as e:
+                    error_message = f"Error with Oracle connector: {str(e)}\n{traceback.format_exc()}"
+                    logger.error(error_message)
+                    action_execution.complete('error', error_message=str(e))
+                    return False, {"error": str(e)}
+            else:
+                # Use the standard execute_query function for other database types
+                try:
+                    logger.info(f"Executing query using connection {connection.name}")
+                    success, results, error = execute_query(
+                        connection_info,
+                        query,
+                        query_params,
+                        timeout
+                    )
+                except Exception as e:
+                    error_message = f"Error executing query: {str(e)}"
+                    logger.error(error_message)
+                    action_execution.complete('error', error_message=error_message)
+                    return False, {"error": error_message}
             
             if not success:
                 action_execution.complete('error', error_message=error)
@@ -149,16 +221,16 @@ class DatabaseQueryAction:
             
         except Exception as e:
             execution_time = time.time() - start_time
-            error_message = f"Error executing database query action: {str(e)}"
+            error_message = f"Error executing database query action: {str(e)}\n{traceback.format_exc()}"
             logger.error(error_message)
             
             # Complete the execution with error
-            action_execution.complete('error', error_message=error_message)
+            action_execution.complete('error', error_message=str(e))
             
             return False, {
                 "success": False,
                 "execution_time": f"{execution_time:.2f}s",
-                "error": error_message
+                "error": str(e)
             }
 
 

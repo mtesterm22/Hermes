@@ -226,9 +226,10 @@ class OracleConnector(DatabaseConnector):
                 # Oracle uses :param instead of %(param)s
                 for key, value in params.items():
                     bind_params[key] = value
-                
+                print(query)
                 cursor.execute(query, bind_params)
             else:
+                print(query)
                 cursor.execute(query)
             
             # For SELECT queries, fetch results

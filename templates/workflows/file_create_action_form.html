@@ -1,0 +1,478 @@
+{# templates/workflows/file_create_action_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} File Create Action{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} File Create Action
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define general information about this action.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Active field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">Active</label>
+                                    <p class="text-gray-500">Enable or disable this action.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Data Source</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure where to get the data for the file.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Data Source field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.data_source.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.data_source.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.data_source }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.data_source.help_text }}
+                            </p>
+                            {% if form.data_source.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.data_source.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Previous Action field (visible when data_source = previous_action) -->
+                        <div class="sm:col-span-4 previous-action-fields">
+                            <label for="{{ form.previous_action_id.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.previous_action_id.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.previous_action_id }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.previous_action_id.help_text }}
+                            </p>
+                            {% if form.previous_action_id.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.previous_action_id.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Custom Data field (visible when data_source = custom_data) -->
+                        <div class="sm:col-span-6 custom-data-fields" style="display: none;">
+                            <label for="{{ form.custom_data.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.custom_data.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.custom_data }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.custom_data.help_text }}
+                            </p>
+                            {% if form.custom_data.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.custom_data.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">File Settings</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure the output file settings.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- File Format field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.file_format.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.file_format.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.file_format }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.file_format.help_text }}
+                            </p>
+                            {% if form.file_format.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.file_format.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Filename field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.filename.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.filename.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.filename }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.filename.help_text }}
+                            </p>
+                            {% if form.filename.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.filename.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Output Directory field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.output_directory.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.output_directory.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.output_directory }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.output_directory.help_text }}
+                            </p>
+                            {% if form.output_directory.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.output_directory.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Data Fields</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure which fields to include and how to format them.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Include Headers field (for tabular formats) -->
+                        <div class="sm:col-span-6 tabular-format-fields">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.include_headers }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.include_headers.id_for_label }}" class="font-medium text-gray-700">{{ form.include_headers.label }}</label>
+                                    <p class="text-gray-500">{{ form.include_headers.help_text }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Header Fields field (for tabular formats) -->
+                        <div class="sm:col-span-6 tabular-format-fields">
+                            <label for="{{ form.header_fields.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.header_fields.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.header_fields }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.header_fields.help_text }}
+                            </p>
+                            {% if form.header_fields.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.header_fields.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Selected Fields field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.selected_fields.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.selected_fields.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.selected_fields }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.selected_fields.help_text }}
+                            </p>
+                            {% if form.selected_fields.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.selected_fields.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CSV-specific options -->
+                <div class="pt-8 csv-format-options">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">CSV Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure CSV-specific options.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- CSV Delimiter field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.csv_delimiter.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.csv_delimiter.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.csv_delimiter }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.csv_delimiter.help_text }}
+                            </p>
+                            {% if form.csv_delimiter.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.csv_delimiter.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- CSV Quote Character field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.csv_quotechar.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.csv_quotechar.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.csv_quotechar }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.csv_quotechar.help_text }}
+                            </p>
+                            {% if form.csv_quotechar.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.csv_quotechar.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Excel-specific options -->
+                <div class="pt-8 excel-format-options" style="display: none;">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Excel Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure Excel-specific options.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Excel Sheet Name field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.excel_sheet_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.excel_sheet_name.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.excel_sheet_name }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.excel_sheet_name.help_text }}
+                            </p>
+                            {% if form.excel_sheet_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.excel_sheet_name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- JSON-specific options -->
+                <div class="pt-8 json-format-options" style="display: none;">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">JSON Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure JSON-specific options.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- JSON Indent field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.json_indent.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.json_indent.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.json_indent }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.json_indent.help_text }}
+                            </p>
+                            {% if form.json_indent.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.json_indent.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Text-specific options -->
+                <div class="pt-8 text-format-options" style="display: none;">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Text Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure text-specific options.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Text Format field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.text_format.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.text_format.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.text_format }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.text_format.help_text }}
+                            </p>
+                            {% if form.text_format.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.text_format.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'workflows:actions' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dataSourceSelect = document.getElementById('{{ form.data_source.id_for_label }}');
+        const fileFormatSelect = document.getElementById('{{ form.file_format.id_for_label }}');
+        
+        const previousActionFields = document.querySelector('.previous-action-fields');
+        const customDataFields = document.querySelector('.custom-data-fields');
+        
+        const csvFormatOptions = document.querySelector('.csv-format-options');
+        const excelFormatOptions = document.querySelector('.excel-format-options');
+        const jsonFormatOptions = document.querySelector('.json-format-options');
+        const textFormatOptions = document.querySelector('.text-format-options');
+        const tabularFormatFields = document.querySelectorAll('.tabular-format-fields');
+        
+        // Function to toggle data source fields
+        function toggleDataSourceFields() {
+            const dataSource = dataSourceSelect.value;
+            
+            // Hide all data source fields first
+            previousActionFields.style.display = 'none';
+            customDataFields.style.display = 'none';
+            
+            // Show the selected data source fields
+            if (dataSource === 'previous_action') {
+                previousActionFields.style.display = 'block';
+            } else if (dataSource === 'custom_data') {
+                customDataFields.style.display = 'block';
+            }
+        }
+        
+        // Function to toggle format-specific options
+        function toggleFormatOptions() {
+            const fileFormat = fileFormatSelect.value;
+            
+            // Hide all format options first
+            csvFormatOptions.style.display = 'none';
+            excelFormatOptions.style.display = 'none';
+            jsonFormatOptions.style.display = 'none';
+            textFormatOptions.style.display = 'none';
+            
+            // Show/hide tabular format fields (headers, etc.)
+            tabularFormatFields.forEach(field => {
+                field.style.display = (fileFormat === 'csv' || fileFormat === 'excel') ? 'block' : 'none';
+            });
+            
+            // Show the selected format options
+            if (fileFormat === 'csv') {
+                csvFormatOptions.style.display = 'block';
+            } else if (fileFormat === 'excel') {
+                excelFormatOptions.style.display = 'block';
+            } else if (fileFormat === 'json' || fileFormat === 'jsonl') {
+                jsonFormatOptions.style.display = 'block';
+            } else if (fileFormat === 'txt') {
+                textFormatOptions.style.display = 'block';
+            }
+        }
+        
+        // Add event listeners
+        dataSourceSelect.addEventListener('change', toggleDataSourceFields);
+        fileFormatSelect.addEventListener('change', toggleFormatOptions);
+        
+        // Set initial state
+        toggleDataSourceFields();
+        toggleFormatOptions();
+    });
+</script>
+{% endblock %}

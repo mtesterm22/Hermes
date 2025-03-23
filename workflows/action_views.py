@@ -17,10 +17,15 @@ from django.db import transaction
 import traceback
 import json
 
-from workflows.forms import DataSourceRefreshActionForm, ActionTypeForm, DatabaseQueryActionForm
 from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow
 from workflows.action_executor import ActionExecutor
 from datasources.models import DataSource
+from .forms import (
+    DataSourceRefreshActionForm, 
+    ActionTypeForm, 
+    DatabaseQueryActionForm,
+    FileCreateActionForm  
+)
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
     """
@@ -321,3 +326,55 @@ class RunActionView(LoginRequiredMixin, View):
             messages.error(request, _('Error running action: {} (See server logs for details)').format(str(e)))
         
         return redirect('workflows:action_detail', pk=pk)
+
+class FileCreateActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new File Create action.
+    """
+    model = Action
+    form_class = FileCreateActionForm
+    template_name = 'workflows/file_create_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('File Create action created successfully.'))
+        return super().form_valid(form)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # If we have a workflow_pk, pass it to the form
+        workflow_pk = self.request.GET.get('workflow_pk')
+        if workflow_pk:
+            kwargs['workflow_pk'] = workflow_pk
+        return kwargs
+
+class FileCreateActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating a File Create action.
+    """
+    model = Action
+    form_class = FileCreateActionForm
+    template_name = 'workflows/file_create_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('File Create action updated successfully.'))
+        return super().form_valid(form)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Try to get workflow from action's relationships
+        try:
+            workflow = self.object.workflow_actions.first().workflow
+            if workflow:
+                kwargs['workflow_pk'] = workflow.pk
+        except (AttributeError, IndexError):
+            pass
+        return kwargs
