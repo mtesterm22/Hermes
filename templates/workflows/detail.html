@@ -1,0 +1,511 @@
+{# templates/workflows/detail.html #}
+{% extends "base.html" %}
+{% load static %}
+{% load workflow_tags %}
+
+{% block title %}Hermes - {{ workflow.name }}{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      {{ workflow.name }}
+    </h2>
+    <div class="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+      <div class="mt-2 flex items-center text-sm text-gray-500">
+        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        Version {{ workflow.version }}
+      </div>
+      <div class="mt-2 flex items-center text-sm text-gray-500">
+        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+        </svg>
+        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+          {% if workflow.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+          {{ workflow.is_active|yesno:"Active,Inactive" }}
+        </span>
+      </div>
+    </div>
+  </div>
+  <div class="mt-5 flex lg:mt-0 lg:ml-4">
+    <span class="hidden sm:block">
+      <a href="{% url 'workflows:designer_edit' workflow.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+        </svg>
+        Visual Designer
+      </a>
+    </span>
+    
+    <span class="hidden sm:block ml-3">
+      <a href="{% url 'workflows:update' workflow.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+        </svg>
+        Edit
+      </a>
+    </span>
+    
+    <span class="hidden sm:block ml-3">
+      <a href="{% url 'workflows:run' workflow.id %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+        <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+        </svg>
+        Run Workflow
+      </a>
+    </span>
+    
+    <!-- Dropdown menu for more actions -->
+    <span class="ml-3 relative sm:hidden">
+      <button type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="mobile-menu-button" aria-expanded="false" aria-haspopup="true">
+        More
+        <svg class="-mr-1 ml-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </button>
+      <div class="origin-top-right absolute right-0 mt-2 -mr-1 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="mobile-menu-button" tabindex="-1" style="display: none;" id="mobile-menu">
+        <a href="{% url 'workflows:designer_edit' workflow.id %}" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1">Visual Designer</a>
+        <a href="{% url 'workflows:update' workflow.id %}" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1">Edit</a>
+        <a href="{% url 'workflows:run' workflow.id %}" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1">Run Workflow</a>
+      </div>
+    </span>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Workflow Details -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+  <div class="px-4 py-5 sm:px-6">
+    <h3 class="text-lg leading-6 font-medium text-gray-900">
+      Workflow Details
+    </h3>
+    <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      Overview information about this workflow.
+    </p>
+  </div>
+  <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+    <dl class="sm:divide-y sm:divide-gray-200">
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Name</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ workflow.name }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Description</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ workflow.description|default:"No description provided." }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Status</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            {% if workflow.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+            {{ workflow.is_active|yesno:"Active,Inactive" }}
+          </span>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Created By</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ workflow.created_by.username|default:"System" }} on {{ workflow.created_at }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Last Modified</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ workflow.modified_by.username|default:"System" }} on {{ workflow.modified_at }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Number of Steps</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ workflow_actions|length }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Last Execution</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          {% if recent_executions %}
+            <a href="{% url 'workflows:execution_detail' recent_executions.0.id %}" class="text-blue-600 hover:text-blue-900">
+              {{ recent_executions.0.start_time }} ({{ recent_executions.0.get_status_display }})
+            </a>
+          {% else %}
+            Never executed
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<!-- Workflow Actions/Steps -->
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+      <div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+          Workflow Steps
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+          The actions that make up this workflow.
+        </p>
+      </div>
+      <div>
+        <a href="{% url 'workflows:workflow_action_create' workflow.pk %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Add Step
+        </a>
+      </div>
+    </div>
+    <div class="border-t border-gray-200">
+      {% if workflow_actions %}
+        <ul class="divide-y divide-gray-200">
+          {% for workflow_action in workflow_actions %}
+            <li class="px-4 py-4">
+              <div class="sm:flex sm:items-center sm:justify-between">
+                <div class="sm:flex sm:items-center">
+                  <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                    <span class="text-gray-600 font-medium">{{ workflow_action.sequence }}</span>
+                  </div>
+                  <div class="mt-4 sm:mt-0 sm:ml-4">
+                    <div class="text-sm font-medium text-gray-900">
+                      <a href="{% url 'workflows:action_detail' workflow_action.action.id %}" class="text-blue-600 hover:text-blue-900">
+                        {{ workflow_action.action.name }}
+                      </a>
+                    </div>
+                    <div class="mt-2 flex items-center text-sm text-gray-500">
+                      <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                        {% if workflow_action.action.action_type == 'database_query' %}bg-indigo-100 text-indigo-800
+                        {% elif workflow_action.action.action_type == 'datasource_refresh' %}bg-blue-100 text-blue-800
+                        {% elif workflow_action.action.action_type == 'file_create' %}bg-purple-100 text-purple-800
+                        {% elif workflow_action.action.action_type == 'email_send' %}bg-green-100 text-green-800
+                        {% elif workflow_action.action.action_type == 'ad_modify' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ workflow_action.action.get_action_type_display }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-4 sm:mt-0 sm:ml-4 flex-shrink-0 flex">
+                  <a href="{% url 'workflows:workflow_action_update' workflow.id workflow_action.id %}" class="mr-4 text-blue-600 hover:text-blue-900">
+                    Edit
+                  </a>
+                  <a href="{% url 'workflows:workflow_action_delete' workflow.id workflow_action.id %}" class="text-red-600 hover:text-red-900">
+                    Remove
+                  </a>
+                </div>
+              </div>
+              
+              {% if workflow_action.condition %}
+                <div class="mt-3 sm:ml-14">
+                  <div class="px-3 py-2 bg-yellow-50 rounded-md border border-yellow-200">
+                    <div class="flex">
+                      <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                      <div class="ml-3">
+                        <h3 class="text-sm leading-5 font-medium text-yellow-800">
+                          Condition
+                        </h3>
+                        <div class="mt-2 text-sm leading-5 text-yellow-700">
+                          <code class="font-mono">{{ workflow_action.condition }}</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {% endif %}
+              
+              {% if workflow_action.parameters %}
+                <div class="mt-3 sm:ml-14">
+                  <div class="flex justify-between items-center">
+                    <h5 class="text-sm font-medium text-gray-700">Parameters:</h5>
+                    <button type="button" class="toggle-params text-sm text-blue-600 hover:text-blue-800">
+                      Show/Hide
+                    </button>
+                  </div>
+                  <div class="params-data mt-1 bg-gray-50 p-3 rounded-md hidden">
+                    <pre class="text-xs overflow-auto whitespace-pre-wrap">{{ workflow_action.parameters|pretty_json }}</pre>
+                  </div>
+                </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="px-4 py-5 text-center text-gray-500">
+          No steps have been added to this workflow yet. 
+          <a href="{% url 'workflows:workflow_action_create' workflow.pk %}" class="text-blue-600 hover:text-blue-900">
+            Add your first action
+          </a>
+          or use the 
+          <a href="{% url 'workflows:designer_edit' workflow.id %}" class="text-blue-600 hover:text-blue-900">
+            Visual Designer
+          </a>
+          to build your workflow.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Recent Executions -->
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+      <div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+          Recent Executions
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+          Recent execution history for this workflow.
+        </p>
+      </div>
+      <div>
+        <a href="{% url 'workflows:run' workflow.pk %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+          <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+          </svg>
+          Run Now
+        </a>
+      </div>
+    </div>
+    <div class="border-t border-gray-200">
+      {% if recent_executions %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Start Time
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Duration
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Triggered By
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {% for execution in recent_executions %}
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ execution.id }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ execution.start_time }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ execution.status|status_color }}">
+                      {{ execution.get_status_display }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {% if execution.duration %}
+                      {{ execution.duration.total_seconds|floatformat:2 }}s
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ execution.triggered_by.username|default:"System" }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <a href="{% url 'workflows:execution_detail' execution.id %}" class="text-blue-600 hover:text-blue-900">
+                      View
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
+          <a href="{% url 'workflows:executions' %}?workflow={{ workflow.id }}" class="text-sm font-medium text-blue-600 hover:text-blue-500">
+            View All Executions<span aria-hidden="true"> &rarr;</span>
+          </a>
+        </div>
+      {% else %}
+        <div class="px-4 py-5 text-center text-gray-500">
+          This workflow has never been executed. 
+          <a href="{% url 'workflows:run' workflow.pk %}" class="text-blue-600 hover:text-blue-900">
+            Run it now
+          </a>
+          to see execution results.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Schedules -->
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between">
+      <div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+          Schedules
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+          Scheduled execution times for this workflow.
+        </p>
+      </div>
+      <div>
+        <a href="{% url 'workflows:schedule_create' %}?workflow={{ workflow.id }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+          </svg>
+          Add Schedule
+        </a>
+      </div>
+    </div>
+    <div class="border-t border-gray-200">
+      {% if schedules %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Frequency
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Next Run
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Run
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              {% for schedule in schedules %}
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <a href="{% url 'workflows:schedule_detail' schedule.id %}" class="text-blue-600 hover:text-blue-900">
+                      {{ schedule.name }}
+                    </a>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ schedule.get_frequency_display }}
+                    {% if schedule.frequency == 'custom' and schedule.cron_expression %}
+                      <span class="text-xs text-gray-500 block">({{ schedule.cron_expression }})</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ schedule.next_run|default:"-" }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {{ schedule.last_run|default:"Never" }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      {% if schedule.enabled %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                      {{ schedule.enabled|yesno:"Enabled,Disabled" }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <a href="{% url 'workflows:schedule_update' schedule.id %}" class="text-blue-600 hover:text-blue-900 mr-3">
+                      Edit
+                    </a>
+                    <a href="{% url 'workflows:schedule_toggle' schedule.id %}" class="text-blue-600 hover:text-blue-900 mr-3">
+                      {{ schedule.enabled|yesno:"Disable,Enable" }}
+                    </a>
+                    <a href="{% url 'workflows:schedule_delete' schedule.id %}" class="text-red-600 hover:text-red-900">
+                      Delete
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="px-4 py-5 text-center text-gray-500">
+          No schedules have been set up for this workflow. 
+          <a href="{% url 'workflows:schedule_create' %}?workflow={{ workflow.id }}" class="text-blue-600 hover:text-blue-900">
+            Add a schedule
+          </a>
+          to automate execution.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-red-600">
+        Danger Zone
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Destructive actions for this workflow.
+      </p>
+    </div>
+    <div class="border-t border-gray-200 px-4 py-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h4 class="text-sm font-medium text-gray-900">Delete this workflow</h4>
+          <p class="mt-1 text-sm text-gray-500">
+            Once deleted, all workflow steps, schedules, and execution history will be permanently removed.
+            This action cannot be undone.
+          </p>
+        </div>
+        <a href="{% url 'workflows:delete' workflow.id %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+          Delete Workflow
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Mobile menu toggle
+  const mobileMenuButton = document.getElementById('mobile-menu-button');
+  const mobileMenu = document.getElementById('mobile-menu');
+  
+  if (mobileMenuButton && mobileMenu) {
+    mobileMenuButton.addEventListener('click', function() {
+      if (mobileMenu.style.display === 'none') {
+        mobileMenu.style.display = 'block';
+      } else {
+        mobileMenu.style.display = 'none';
+      }
+    });
+  }
+  
+  // Toggle parameters visibility
+  document.querySelectorAll('.toggle-params').forEach(button => {
+    button.addEventListener('click', function() {
+      const paramsData = this.closest('li').querySelector('.params-data');
+      if (paramsData.classList.contains('hidden')) {
+        paramsData.classList.remove('hidden');
+      } else {
+        paramsData.classList.add('hidden');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

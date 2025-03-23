@@ -7,6 +7,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
+from .workflow_engine import execute_workflow
 from .models import Workflow, WorkflowAction, Action, Schedule, WorkflowExecution, ActionExecution
 from .forms import (
     DataSourceRefreshActionForm, 
@@ -23,7 +24,28 @@ class WorkflowListView(LoginRequiredMixin, ListView):
     context_object_name = 'workflows'
     
     def get_queryset(self):
-        return Workflow.objects.all().order_by('name')
+        # Get ordered workflows with prefetch for better performance
+        return Workflow.objects.all().order_by('-modified_at').prefetch_related(
+            'executions', 
+            'schedules'
+        ).select_related('created_by', 'modified_by')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add total execution count
+        from django.db.models import Count
+        context['total_executions'] = WorkflowExecution.objects.count()
+        
+        # Add active schedules count
+        context['active_schedules'] = Schedule.objects.filter(enabled=True).count()
+        
+        # Add recent executions (for possible display on the page)
+        context['recent_executions'] = WorkflowExecution.objects.all().order_by('-start_time')[:5].select_related(
+            'workflow', 'triggered_by'
+        )
+        
+        return context
 
 
 class WorkflowDetailView(LoginRequiredMixin, DetailView):
@@ -33,9 +55,20 @@ class WorkflowDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['workflow_actions'] = self.object.workflow_actions.all().order_by('sequence')
-        context['recent_executions'] = self.object.executions.all().order_by('-start_time')[:5]
-        context['schedules'] = self.object.schedules.all().order_by('next_run')
+        
+        # Get workflow actions ordered by sequence
+        context['workflow_actions'] = self.object.workflow_actions.all().order_by('sequence').select_related(
+            'action'
+        )
+        
+        # Get recent executions for this workflow
+        context['recent_executions'] = self.object.executions.all().order_by('-start_time')[:5].select_related(
+            'triggered_by'
+        )
+        
+        # Get schedules for this workflow
+        context['schedules'] = self.object.schedules.all().order_by('-enabled', 'next_run')
+        
         return context
 
 
@@ -100,6 +133,89 @@ class WorkflowRunView(LoginRequiredMixin, View):
         messages.success(request, _('Workflow executed successfully.'))
         return redirect('workflows:execution_detail', pk=execution.pk)
 
+class WorkflowRunView(LoginRequiredMixin, View):
+    """View to trigger a manual execution of a workflow"""
+    
+    def get(self, request, pk):
+        """Show form for running workflow with parameters"""
+        workflow = get_object_or_404(Workflow, pk=pk)
+        
+        return render(request, 'workflows/run_workflow.html', {
+            'workflow': workflow,
+        })
+    
+    def post(self, request, pk):
+        """Run the workflow"""
+        workflow = get_object_or_404(Workflow, pk=pk)
+        
+        # Parse parameters from form data
+        parameters = {}
+        for key, value in request.POST.items():
+            if key.startswith('param_'):
+                param_name = key[6:]  # Remove 'param_' prefix
+                parameters[param_name] = value
+        
+        try:
+            # Execute the workflow using the workflow engine
+            execution = execute_workflow(
+                workflow_id=workflow.id,
+                parameters=parameters,
+                user=request.user
+            )
+            
+            if execution.status == 'success':
+                messages.success(request, _('Workflow executed successfully.'))
+            elif execution.status == 'warning':
+                messages.warning(request, _('Workflow executed with warnings.'))
+            else:
+                messages.error(request, _('Workflow execution failed: {}').format(
+                    execution.error_message or 'Unknown error'
+                ))
+            
+            return redirect('workflows:execution_detail', pk=execution.pk)
+            
+        except Exception as e:
+            messages.error(request, _('Error running workflow: {}').format(str(e)))
+            return redirect('workflows:detail', pk=workflow.pk)
+
+
+class WorkflowRunAPIView(LoginRequiredMixin, View):
+    """API view for running a workflow"""
+    
+    def post(self, request, pk):
+        """Run the workflow via API call"""
+        workflow = get_object_or_404(Workflow, pk=pk)
+        
+        try:
+            # Parse parameters from request body
+            parameters = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            # If body is not valid JSON, use empty parameters
+            parameters = {}
+        
+        try:
+            # Execute the workflow using the workflow engine
+            execution = execute_workflow(
+                workflow_id=workflow.id,
+                parameters=parameters,
+                user=request.user
+            )
+            
+            # Return result
+            return JsonResponse({
+                'success': execution.status == 'success',
+                'status': execution.status,
+                'execution_id': execution.id,
+                'detail_url': reverse('workflows:execution_detail', kwargs={'pk': execution.pk}),
+                'error': execution.error_message if execution.error_message else None,
+                'result_data': execution.result_data if execution.result_data else None
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
 
 # Workflow Action views
 class WorkflowActionCreateView(LoginRequiredMixin, CreateView):
@@ -280,7 +396,6 @@ class ScheduleToggleView(LoginRequiredMixin, View):
         return redirect(next_url)
 
 
-# Execution views
 class WorkflowExecutionListView(LoginRequiredMixin, ListView):
     model = WorkflowExecution
     template_name = 'workflows/executions.html'
@@ -288,7 +403,9 @@ class WorkflowExecutionListView(LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        queryset = WorkflowExecution.objects.all().order_by('-start_time')
+        queryset = WorkflowExecution.objects.all().order_by('-start_time').select_related(
+            'workflow', 'triggered_by'
+        )
         
         # Filter by workflow if specified
         workflow_id = self.request.GET.get('workflow')
@@ -299,6 +416,22 @@ class WorkflowExecutionListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get('status')
         if status:
             queryset = queryset.filter(status=status)
+        
+        # Filter by date if specified
+        date = self.request.GET.get('date')
+        if date:
+            from django.utils import timezone
+            import datetime
+            try:
+                filter_date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+                next_day = filter_date + datetime.timedelta(days=1)
+                
+                queryset = queryset.filter(
+                    start_time__gte=datetime.datetime.combine(filter_date, datetime.time.min, tzinfo=timezone.get_current_timezone()),
+                    start_time__lt=datetime.datetime.combine(next_day, datetime.time.min, tzinfo=timezone.get_current_timezone())
+                )
+            except (ValueError, TypeError):
+                pass  # Invalid date format, ignore filter
         
         return queryset
     

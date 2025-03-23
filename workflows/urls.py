@@ -1,7 +1,8 @@
 # Updated workflows/urls.py
 from django.urls import path
 from . import views
-from . import action_views 
+from . import action_views
+from . import designer_views
 from .action_views import FileCreateActionCreateView, FileCreateActionUpdateView
 
 app_name = 'workflows'
@@ -14,6 +15,11 @@ urlpatterns = [
     path('<int:pk>/update/', views.WorkflowUpdateView.as_view(), name='update'),
     path('<int:pk>/delete/', views.WorkflowDeleteView.as_view(), name='delete'),
     path('<int:pk>/run/', views.WorkflowRunView.as_view(), name='run'),
+    path('<int:pk>/api/run/', views.WorkflowRunAPIView.as_view(), name='api_run'),
+    
+    # Workflow Designer
+    path('designer/', designer_views.WorkflowDesignerView.as_view(), name='designer'),
+    path('designer/<int:pk>/', designer_views.WorkflowDesignerView.as_view(), name='designer_edit'),
     
     # Workflow Actions
     path('<int:workflow_pk>/actions/create/', views.WorkflowActionCreateView.as_view(), name='workflow_action_create'),
@@ -32,7 +38,6 @@ urlpatterns = [
     path('actions/<int:pk>/update/database-query/', action_views.DatabaseQueryActionUpdateView.as_view(), name='database_query_action_update'),
     path('actions/create/file-create/', action_views.FileCreateActionCreateView.as_view(), name='file_create_action_create'),
     path('actions/<int:pk>/update/file-create/', action_views.FileCreateActionUpdateView.as_view(), name='file_create_action_update'),
-
     
     # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),

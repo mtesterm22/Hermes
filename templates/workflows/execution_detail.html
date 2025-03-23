@@ -1,0 +1,286 @@
+{# templates/workflows/execution_detail.html #}
+{% extends "base.html" %}
+{% load static %}
+{% load workflow_tags %}
+
+{% block title %}Hermes - Execution: {{ execution.workflow.name }}{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      Workflow Execution: {{ execution.workflow.name }}
+    </h2>
+    <div class="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+      <div class="mt-2 flex items-center text-sm text-gray-500">
+        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+        </svg>
+        {{ execution.start_time }}
+      </div>
+      <div class="mt-2 flex items-center text-sm text-gray-500">
+        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+        </svg>
+        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            {% if execution.status == 'success' %}bg-green-100 text-green-800
+            {% elif execution.status == 'error' %}bg-red-100 text-red-800
+            {% elif execution.status == 'running' %}bg-blue-100 text-blue-800
+            {% elif execution.status == 'warning' %}bg-yellow-100 text-yellow-800
+            {% else %}bg-gray-100 text-gray-800{% endif %}">
+          {{ execution.get_status_display }}
+        </span>
+      </div>
+      {% if execution.duration %}
+      <div class="mt-2 flex items-center text-sm text-gray-500">
+        <svg class="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+        </svg>
+        Duration: {{ execution.duration.total_seconds|floatformat:2 }}s
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="mt-4 flex md:mt-0 md:ml-4">
+    <a href="{% url 'workflows:detail' execution.workflow.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+      Back to Workflow
+    </a>
+    {% if execution.status != 'running' %}
+    <a href="{% url 'workflows:run' execution.workflow.id %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+      <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+      </svg>
+      Run Again
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Execution Details -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+  <div class="px-4 py-5 sm:px-6">
+    <h3 class="text-lg leading-6 font-medium text-gray-900">
+      Execution Details
+    </h3>
+    <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      Details about this workflow execution.
+    </p>
+  </div>
+  <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+    <dl class="sm:divide-y sm:divide-gray-200">
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Workflow</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <a href="{% url 'workflows:detail' execution.workflow.id %}" class="text-blue-600 hover:text-blue-900">
+            {{ execution.workflow.name }}
+          </a>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Status</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+            {% if execution.status == 'success' %}bg-green-100 text-green-800
+            {% elif execution.status == 'error' %}bg-red-100 text-red-800
+            {% elif execution.status == 'running' %}bg-blue-100 text-blue-800
+            {% elif execution.status == 'warning' %}bg-yellow-100 text-yellow-800
+            {% else %}bg-gray-100 text-gray-800{% endif %}">
+            {{ execution.get_status_display }}
+          </span>
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Triggered By</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          {{ execution.triggered_by.username|default:"System" }}
+        </dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Start Time</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ execution.start_time }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">End Time</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ execution.end_time|default:"In progress..." }}</dd>
+      </div>
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Duration</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          {% if execution.duration %}
+            {{ execution.duration.total_seconds|floatformat:2 }} seconds
+          {% else %}
+            -
+          {% endif %}
+        </dd>
+      </div>
+      {% if execution.schedule %}
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Schedule</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <a href="{% url 'workflows:schedule_detail' execution.schedule.id %}" class="text-blue-600 hover:text-blue-900">
+            {{ execution.schedule.name }}
+          </a>
+        </dd>
+      </div>
+      {% endif %}
+      {% if execution.parameters %}
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Parameters</dt>
+        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+          <div class="bg-gray-50 p-4 rounded-md">
+            <pre class="text-xs overflow-auto whitespace-pre-wrap">{{ execution.parameters|pretty_json }}</pre>
+          </div>
+        </dd>
+      </div>
+      {% endif %}
+      {% if execution.error_message %}
+      <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+        <dt class="text-sm font-medium text-gray-500">Error Message</dt>
+        <dd class="mt-1 text-sm text-red-600 sm:mt-0 sm:col-span-2">
+          <div class="bg-red-50 p-4 rounded-md">
+            {{ execution.error_message }}
+          </div>
+        </dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+</div>
+
+<!-- Step Executions -->
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        Step Executions
+      </h3>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Execution details for each step of the workflow.
+      </p>
+    </div>
+    <div class="border-t border-gray-200">
+      {% if action_executions %}
+        <ul class="divide-y divide-gray-200">
+          {% for action_execution in action_executions %}
+            <li class="px-4 py-4">
+              <div class="sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span class="text-gray-500 font-medium">{{ forloop.counter }}</span>
+                    </div>
+                    <div class="ml-4">
+                      <h4 class="text-lg font-medium text-gray-900">
+                        {{ action_execution.workflow_action.action.name }}
+                      </h4>
+                      <p class="text-sm text-gray-500">
+                        {{ action_execution.workflow_action.action.get_action_type_display }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-4 sm:mt-0 text-right">
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ action_execution.status|status_color }}">
+                    {{ action_execution.get_status_display }}
+                  </span>
+                  {% if action_execution.duration %}
+                    <p class="text-sm text-gray-500 mt-2">Duration: {{ action_execution.duration.total_seconds|floatformat:2 }}s</p>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <!-- Execution details for this step -->
+              {% if action_execution.error_message %}
+              <div class="mt-4">
+                <h5 class="text-sm font-medium text-red-800">Error:</h5>
+                <div class="mt-1 bg-red-50 p-3 rounded-md text-sm text-red-700">
+                  {{ action_execution.error_message }}
+                </div>
+              </div>
+              {% endif %}
+              
+              {% if action_execution.output_data %}
+              <div class="mt-4">
+                <div class="flex justify-between items-center">
+                  <h5 class="text-sm font-medium text-gray-700">Output Data:</h5>
+                  <button type="button" class="toggle-output text-sm text-blue-600 hover:text-blue-800">
+                    Show/Hide
+                  </button>
+                </div>
+                <div class="output-data mt-1 bg-gray-50 p-3 rounded-md hidden">
+                  <pre class="text-xs overflow-auto whitespace-pre-wrap">{{ action_execution.output_data|pretty_json }}</pre>
+                </div>
+              </div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="px-4 py-5 text-center text-gray-500">
+          No step executions found for this workflow run.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Execution Result -->
+{% if execution.result_data %}
+<div class="mt-6">
+  <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+      <div>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+          Execution Results
+        </h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+          Final results from the workflow execution.
+        </p>
+      </div>
+      <button type="button" id="toggleResultsBtn" class="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        Show/Hide Details
+      </button>
+    </div>
+    <div class="border-t border-gray-200">
+      <div id="resultContainer" class="px-4 py-5 hidden">
+        <pre class="text-xs bg-gray-50 p-4 rounded-md overflow-auto whitespace-pre-wrap">{{ execution.result_data|pretty_json }}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Toggle output data visibility
+    document.querySelectorAll('.toggle-output').forEach(button => {
+      button.addEventListener('click', function() {
+        const outputData = this.closest('li').querySelector('.output-data');
+        if (outputData.classList.contains('hidden')) {
+          outputData.classList.remove('hidden');
+        } else {
+          outputData.classList.add('hidden');
+        }
+      });
+    });
+    
+    // Toggle results visibility
+    const toggleResultsBtn = document.getElementById('toggleResultsBtn');
+    const resultContainer = document.getElementById('resultContainer');
+    
+    if (toggleResultsBtn && resultContainer) {
+      toggleResultsBtn.addEventListener('click', function() {
+        if (resultContainer.classList.contains('hidden')) {
+          resultContainer.classList.remove('hidden');
+        } else {
+          resultContainer.classList.add('hidden');
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

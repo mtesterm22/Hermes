@@ -1,0 +1,202 @@
+{# templates/workflows/run_workflow.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - Run Workflow: {{ workflow.name }}{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      Run Workflow: {{ workflow.name }}
+    </h2>
+  </div>
+  <div class="mt-4 flex md:mt-0 md:ml-4">
+    <a href="{% url 'workflows:detail' workflow.pk %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+      Back to Workflow
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+  <div class="px-4 py-5 sm:px-6 bg-gray-50">
+    <h3 class="text-lg leading-6 font-medium text-gray-900">
+      Run Workflow
+    </h3>
+    <p class="mt-1 max-w-2xl text-sm text-gray-500">
+      Configure parameters for this workflow run.
+    </p>
+  </div>
+  
+  <div class="px-4 py-5 sm:p-6">
+    <form method="post" class="space-y-8 divide-y divide-gray-200">
+      {% csrf_token %}
+      
+      <div class="space-y-8 divide-y divide-gray-200">
+        <div>
+          <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Workflow Parameters</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Provide values for any parameters used in this workflow.
+            </p>
+          </div>
+          
+          <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+            <!-- If we have known parameters, list them here -->
+            {% if workflow_parameters %}
+              {% for param_name, param_info in workflow_parameters.items %}
+                <div class="sm:col-span-3">
+                  <label for="param_{{ param_name }}" class="block text-sm font-medium text-gray-700">
+                    {{ param_info.label|default:param_name }}
+                  </label>
+                  <div class="mt-1">
+                    <input type="text" name="param_{{ param_name }}" id="param_{{ param_name }}" 
+                           class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                           value="{{ param_info.default|default:'' }}">
+                  </div>
+                  {% if param_info.description %}
+                    <p class="mt-2 text-sm text-gray-500">{{ param_info.description }}</p>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            {% else %}
+              <!-- Otherwise provide some common parameters -->
+              <div class="sm:col-span-3">
+                <label for="param_date" class="block text-sm font-medium text-gray-700">
+                  Date
+                </label>
+                <div class="mt-1">
+                  <input type="date" name="param_date" id="param_date" 
+                         class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                         value="{{ today|date:'Y-m-d' }}">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Date to use for this workflow run</p>
+              </div>
+              
+              <div class="sm:col-span-3">
+                <label for="param_limit" class="block text-sm font-medium text-gray-700">
+                  Record Limit
+                </label>
+                <div class="mt-1">
+                  <input type="number" name="param_limit" id="param_limit" 
+                         class="focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                         value="1000">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Maximum number of records to process</p>
+              </div>
+            {% endif %}
+            
+            <!-- Custom Parameters Section -->
+            <div class="sm:col-span-6">
+              <h4 class="font-medium text-sm text-gray-700 mt-4 mb-2">Custom Parameters</h4>
+              <p class="text-sm text-gray-500 mb-4">
+                Add any additional parameters needed for this workflow run.
+              </p>
+              
+              <div id="customParameters">
+                <!-- Template for custom parameter -->
+                <template id="customParameterTemplate">
+                  <div class="flex space-x-3 mb-2 custom-param-row">
+                    <div class="flex-1">
+                      <input type="text" placeholder="Parameter name" 
+                             class="param-name focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div class="flex-1">
+                      <input type="text" placeholder="Parameter value" 
+                             class="param-value focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                      <button type="button" class="remove-param inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                
+                <!-- Container for custom parameters -->
+                <div id="customParamContainer"></div>
+                
+                <button type="button" id="addParameterBtn" class="mt-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  <svg class="-ml-0.5 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                  </svg>
+                  Add Parameter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="pt-5">
+        <div class="flex justify-end">
+          <a href="{% url 'workflows:detail' workflow.pk %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Cancel
+          </a>
+          <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Run Workflow
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Get references to elements
+  const addParameterBtn = document.getElementById('addParameterBtn');
+  const customParamContainer = document.getElementById('customParamContainer');
+  const customParameterTemplate = document.getElementById('customParameterTemplate');
+  const form = document.querySelector('form');
+  
+  // Function to add a new custom parameter row
+  function addCustomParameter() {
+    const template = customParameterTemplate.content.cloneNode(true);
+    customParamContainer.appendChild(template);
+    
+    // Add event listener to remove button
+    const removeBtn = customParamContainer.lastElementChild.querySelector('.remove-param');
+    removeBtn.addEventListener('click', function() {
+      this.closest('.custom-param-row').remove();
+    });
+  }
+  
+  // Add event listener to add parameter button
+  addParameterBtn.addEventListener('click', addCustomParameter);
+  
+  // Process custom parameters before form submission
+  form.addEventListener('submit', function(e) {
+    const customParamRows = customParamContainer.querySelectorAll('.custom-param-row');
+    
+    customParamRows.forEach(function(row) {
+      const nameInput = row.querySelector('.param-name');
+      const valueInput = row.querySelector('.param-value');
+      
+      // Skip if either name or value is empty
+      if (!nameInput.value.trim() || !valueInput.value.trim()) {
+        return;
+      }
+      
+      // Create a hidden input with the proper name format
+      const hiddenInput = document.createElement('input');
+      hiddenInput.type = 'hidden';
+      hiddenInput.name = 'param_' + nameInput.value.trim();
+      hiddenInput.value = valueInput.value.trim();
+      
+      // Add to form
+      form.appendChild(hiddenInput);
+    });
+  });
+  
+  // Add one empty parameter row to start
+  addCustomParameter();
+});
+</script>
+{% endblock %}

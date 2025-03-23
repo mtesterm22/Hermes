@@ -1,0 +1,326 @@
+{# templates/workflows/index.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - Workflows{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      Workflows
+    </h2>
+    <p class="mt-1 text-sm text-gray-500">
+      Create and manage process automation workflows
+    </p>
+  </div>
+  <div class="mt-4 flex md:mt-0 md:ml-4">
+    <a href="{% url 'workflows:designer' %}" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+      <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+      </svg>
+      Create New Workflow
+    </a>
+    <a href="{% url 'workflows:executions' %}" class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+      <svg class="-ml-1 mr-2 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+      </svg>
+      Execution History
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+  {% if workflows %}
+    <!-- Filter and search bar -->
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200 bg-gray-50">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex-1 min-w-0">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Manage Workflows
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            {{ workflows|length }} workflows found
+          </p>
+        </div>
+        <div class="mt-4 lg:mt-0 lg:ml-4">
+          <div class="flex space-x-3">
+            <div>
+              <select id="statusFilter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div>
+              <div class="relative flex items-stretch flex-grow">
+                <input type="text" id="searchInput" placeholder="Search workflows..." class="focus:ring-blue-500 focus:border-blue-500 block w-full rounded-md sm:text-sm border-gray-300">
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow list -->
+    <div class="workflow-list">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Name
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Version
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Last Modified
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Last Run
+            </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for workflow in workflows %}
+            <tr class="workflow-row" data-status="{{ workflow.is_active|yesno:'active,inactive' }}">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">
+                      <a href="{% url 'workflows:detail' workflow.id %}" class="text-blue-600 hover:text-blue-900">
+                        {{ workflow.name }}
+                      </a>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                      {{ workflow.description|truncatechars:50 }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm text-gray-900">v{{ workflow.version }}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                  {% if workflow.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                  {{ workflow.is_active|yesno:"Active,Inactive" }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {{ workflow.modified_at|date:"M d, Y H:i" }}
+                {% if workflow.modified_by %}
+                  <div class="text-xs text-gray-400">by {{ workflow.modified_by.username }}</div>
+                {% endif %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {% with last_execution=workflow.executions.first %}
+                  {% if last_execution %}
+                    <a href="{% url 'workflows:execution_detail' last_execution.id %}" class="text-blue-600 hover:text-blue-900">
+                      {{ last_execution.start_time|date:"M d, Y H:i" }}
+                    </a>
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      {% if last_execution.status == 'success' %}bg-green-100 text-green-800
+                      {% elif last_execution.status == 'error' %}bg-red-100 text-red-800
+                      {% elif last_execution.status == 'running' %}bg-blue-100 text-blue-800
+                      {% else %}bg-gray-100 text-gray-800{% endif %}">
+                      {{ last_execution.get_status_display }}
+                    </span>
+                  {% else %}
+                    <span class="text-gray-400">Never run</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <div class="flex space-x-3">
+                  <a href="{% url 'workflows:designer_edit' workflow.id %}" class="text-indigo-600 hover:text-indigo-900" title="Visual Designer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                      <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                  <a href="{% url 'workflows:run' workflow.id %}" class="text-green-600 hover:text-green-900" title="Run Workflow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                  <a href="{% url 'workflows:delete' workflow.id %}" class="text-red-600 hover:text-red-900" title="Delete Workflow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="px-4 py-5 sm:p-6 text-center">
+      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+        <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+      </div>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">No workflows found</h3>
+      <p class="mt-1 text-sm text-gray-500">Get started by creating a new workflow.</p>
+      <div class="mt-6">
+        <a href="{% url 'workflows:designer' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Create New Workflow
+        </a>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Dashboard Cards -->
+<div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  <!-- Recently Modified Workflows -->
+  <div class="bg-white overflow-hidden shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center">
+        <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+          <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </div>
+        <div class="ml-5 w-0 flex-1">
+          <dl>
+            <dt class="text-sm font-medium text-gray-500 truncate">
+              Total Workflows
+            </dt>
+            <dd>
+              <div class="text-lg font-medium text-gray-900">
+                {{ workflows|length }}
+              </div>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-50 px-4 py-4 sm:px-6">
+      <div class="text-sm">
+        <a href="{% url 'workflows:designer' %}" class="font-medium text-blue-600 hover:text-blue-500">
+          Create new workflow<span aria-hidden="true"> &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Executions -->
+  <div class="bg-white overflow-hidden shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center">
+        <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+          <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="ml-5 w-0 flex-1">
+          <dl>
+            <dt class="text-sm font-medium text-gray-500 truncate">
+              Total Executions
+            </dt>
+            <dd>
+              <div class="text-lg font-medium text-gray-900">
+                {{ total_executions|default:0 }}
+              </div>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-50 px-4 py-4 sm:px-6">
+      <div class="text-sm">
+        <a href="{% url 'workflows:executions' %}" class="font-medium text-blue-600 hover:text-blue-500">
+          View execution history<span aria-hidden="true"> &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Schedules -->
+  <div class="bg-white overflow-hidden shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center">
+        <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+          <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="ml-5 w-0 flex-1">
+          <dl>
+            <dt class="text-sm font-medium text-gray-500 truncate">
+              Active Schedules
+            </dt>
+            <dd>
+              <div class="text-lg font-medium text-gray-900">
+                {{ active_schedules|default:0 }}
+              </div>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="bg-gray-50 px-4 py-4 sm:px-6">
+      <div class="text-sm">
+        <a href="{% url 'workflows:schedules' %}" class="font-medium text-blue-600 hover:text-blue-500">
+          Manage schedules<span aria-hidden="true"> &rarr;</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('searchInput');
+  const statusFilter = document.getElementById('statusFilter');
+  const workflowRows = document.querySelectorAll('.workflow-row');
+  
+  // Function to filter workflows
+  function filterWorkflows() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusValue = statusFilter.value;
+    
+    workflowRows.forEach(row => {
+      const name = row.querySelector('a').textContent.toLowerCase();
+      const description = row.querySelector('.text-sm.text-gray-500').textContent.toLowerCase();
+      const rowStatus = row.dataset.status;
+      
+      const matchesSearch = name.includes(searchTerm) || description.includes(searchTerm);
+      const matchesStatus = statusValue === 'all' || rowStatus === statusValue;
+      
+      row.style.display = matchesSearch && matchesStatus ? 'table-row' : 'none';
+    });
+  }
+  
+  // Add event listeners
+  searchInput.addEventListener('input', filterWorkflows);
+  statusFilter.addEventListener('change', filterWorkflows);
+  
+  // Apply initial filtering
+  filterWorkflows();
+});
+</script>
+{% endblock %}

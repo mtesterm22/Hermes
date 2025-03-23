@@ -1,4 +1,6 @@
-# workflows/models.py
+# Complete workflows/models.py file 
+# This ensures the Workflow model is properly defined
+
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
@@ -68,6 +70,7 @@ class Workflow(models.Model):
     description = models.TextField(_('Description'), blank=True)
     is_active = models.BooleanField(_('Is Active'), default=True)
     version = models.PositiveIntegerField(_('Version'), default=1)
+    workflow_data = models.JSONField(_('Workflow Designer Data'), blank=True, null=True, default=dict)
     
     # Audit fields
     created_by = models.ForeignKey(
@@ -91,6 +94,15 @@ class Workflow(models.Model):
     
     def get_actions(self):
         return self.workflow_actions.all().order_by('sequence')
+        
+    def get_designer_url(self):
+        """Get URL for the workflow designer view."""
+        from django.urls import reverse
+        return reverse('workflows:designer_edit', kwargs={'pk': self.pk})
+        
+    def has_designer_data(self):
+        """Check if this workflow has designer data."""
+        return bool(self.workflow_data)
 
 class WorkflowAction(models.Model):
     """
@@ -290,4 +302,3 @@ class ActionExecution(models.Model):
         if output_data:
             self.output_data = output_data
         self.save()
-

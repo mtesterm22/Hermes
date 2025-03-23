@@ -1,0 +1,95 @@
+{# templates/workflows/confirm_delete.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - Confirm Delete: {{ workflow.name }}{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+  <div class="flex-1 min-w-0">
+    <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+      Confirm Delete
+    </h2>
+  </div>
+  <div class="mt-4 flex md:mt-0 md:ml-4">
+    <a href="{% url 'workflows:detail' workflow.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+      Back to Workflow
+    </a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow sm:rounded-lg">
+  <div class="px-4 py-5 sm:p-6">
+    <div class="sm:flex sm:items-start">
+      <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+        <!-- Heroicon name: outline/exclamation -->
+        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
+          Delete Workflow
+        </h3>
+        <div class="mt-2">
+          <p class="text-sm text-gray-500">
+            Are you sure you want to delete the workflow "<strong>{{ workflow.name }}</strong>"? This action cannot be undone. 
+            All workflow actions, schedules, and execution history associated with this workflow will also be deleted.
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Workflow Info -->
+    <div class="mt-5 border-t border-gray-200 pt-5">
+      <h4 class="text-md font-medium text-gray-900">Workflow Information</h4>
+      <dl class="mt-2 border border-gray-200 rounded-md divide-y divide-gray-200">
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Name</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.name }}</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Description</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.description|default:"No description provided" }}</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Version</dt>
+          <dd class="text-sm text-gray-900 col-span-2">v{{ workflow.version }}</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Created</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.created_at|date:"M d, Y" }} by {{ workflow.created_by.username|default:"System" }}</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Actions</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.workflow_actions.count }} workflow actions</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Executions</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.executions.count }} execution records</dd>
+        </div>
+        <div class="px-4 py-3 grid grid-cols-3 gap-4">
+          <dt class="text-sm font-medium text-gray-500">Schedules</dt>
+          <dd class="text-sm text-gray-900 col-span-2">{{ workflow.schedules.count }} scheduled runs</dd>
+        </div>
+      </dl>
+    </div>
+    
+    <div class="mt-5">
+      <form method="post">
+        {% csrf_token %}
+        <div class="space-x-4 flex justify-end">
+          <a href="{% url 'workflows:detail' workflow.id %}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Cancel
+          </a>
+          <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+            Delete Workflow
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
