@@ -1,3 +1,5 @@
+
+
 """
 Database query action for workflows.
 
@@ -13,20 +15,12 @@ from typing import Dict, Any, Optional, Tuple, List
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from core.database import (
-    get_connector, 
-    execute_query, 
-    execute_script, 
-    format_results
-)
-from core.database.utils import (
-    validate_query,
-    extract_query_type,
-    extract_query_params,
-    limit_results
-)
-from datasources.models import DataSource
-from workflows.models import Action, ActionExecution
+from core.database import get_connector
+from core.database.executors import execute_query
+from core.database.formatters import format_results
+from core.database.utils import validate_query, extract_query_type, extract_query_params, limit_results
+
+from workflows.models import Action, ActionExecution, WorkflowExecution
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +65,7 @@ class DatabaseQueryAction:
             
             # Extract required parameters
             query = params.get('query', '')
-            timeout = params.get('timeout', 30)  # default 30s timeout
+            timeout = params.get('timeout', 30)
             result_format = params.get('result_format', 'json')
             max_rows = params.get('max_rows', 1000)
             
@@ -89,42 +83,24 @@ class DatabaseQueryAction:
             query_type = extract_query_type(query)
             logger.info(f"Executing {query_type} query for action {self.action.name}")
             
-            # Get data source
-            data_source = None
-            if self.action.datasource:
-                # Use the action's data source
-                data_source = self.action.datasource
-            else:
-                # Check if data source is specified in parameters
-                data_source_id = params.get('data_source_id')
-                if data_source_id:
-                    try:
-                        data_source = DataSource.objects.get(id=data_source_id)
-                    except DataSource.DoesNotExist:
-                        error = f"Data source with ID {data_source_id} not found"
-                        action_execution.complete('error', error_message=error)
-                        return False, {"error": error}
-            
-            if not data_source:
-                error = "No data source specified for database query action"
+            # Get database connection from ID
+            connection_id = params.get('connection_id')
+            if not connection_id:
+                error = "No database connection specified for database query action"
+                action_execution.complete('error', error_message=error)
+                return False, {"error": error}
+
+            try:
+                from datasources.connection_models import DatabaseConnection
+                connection = DatabaseConnection.objects.get(id=connection_id)
+            except DatabaseConnection.DoesNotExist:
+                error = f"Database connection with ID {connection_id} not found"
                 action_execution.complete('error', error_message=error)
                 return False, {"error": error}
             
-            # Get connection parameters from the data source
-            connection_info = {
-                'type': data_source.type if hasattr(data_source, 'type') else 'postgresql',
-                'host': data_source.host if hasattr(data_source, 'host') else 'localhost',
-                'port': data_source.port if hasattr(data_source, 'port') else 5432,
-                'database': data_source.database if hasattr(data_source, 'database') else '',
-                'user': data_source.username if hasattr(data_source, 'username') else '',
-                'password': data_source.password if hasattr(data_source, 'password') else '',
-            }
+            # Get connection info from the database connection
+            connection_info = connection.get_connection_info()
             
-            # Add any database-specific options
-            if hasattr(data_source, 'options') and data_source.options:
-                if isinstance(data_source.options, dict):
-                    connection_info.update(data_source.options)
-                    
             # Extract query parameters from execution context
             query_params = {}
             
@@ -138,16 +114,10 @@ class DatabaseQueryAction:
                     param_name = key[6:]  # Remove 'param_' prefix
                     query_params[param_name] = value
             
-            # Get database connector and execute the query
-            connector = get_connector(connection_info)
-            if not connector:
-                error = f"Failed to create database connector for {data_source.name}"
-                action_execution.complete('error', error_message=error)
-                return False, {"error": error}
-            
             # Execute the query
+            logger.info(f"Executing query using connection {connection.name}")
             success, results, error = execute_query(
-                connector,
+                connection_info,
                 query,
                 query_params,
                 timeout
@@ -167,6 +137,7 @@ class DatabaseQueryAction:
                 "success": True,
                 "execution_time": f"{execution_time:.2f}s",
                 "query_type": query_type,
+                "connection_name": connection.name,
                 "rows_affected": results.get("rowcount", 0) if isinstance(results, dict) else len(results),
                 "result": formatted_results if result_format == 'dict' else str(formatted_results)
             }

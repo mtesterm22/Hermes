@@ -88,6 +88,8 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         {% if action.action_type == 'datasource_refresh' %}
                             <a href="{% url 'workflows:datasource_refresh_action_update' action.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+                        {% elif action.action_type == 'database_query' %}
+                            <a href="{% url 'workflows:database_query_action_update' action.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
                         {% else %}
                             <a href="{% url 'workflows:action_update' action.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
                         {% endif %}

@@ -11,19 +11,20 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.views.generic import CreateView, UpdateView, FormView, TemplateView, DetailView
 from django.utils.translation import gettext_lazy as _
-from workflows.forms import DataSourceRefreshActionForm, ActionTypeForm, DatabaseQueryActionForm
 from django.views import View
 from django.utils import timezone
 from django.db import transaction
 import traceback
 import json
-from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow, DataSource
+
+from workflows.forms import DataSourceRefreshActionForm, ActionTypeForm, DatabaseQueryActionForm
+from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow
 from workflows.action_executor import ActionExecutor
+from datasources.models import DataSource
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
     """
     View for selecting the type of action to create.
-    Changed from FormView to TemplateView to fix 'NoneType' is not callable error.
     """
     template_name = 'workflows/action_type_select.html'
     
@@ -32,7 +33,6 @@ class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
         context['action_types'] = Action.ACTION_TYPES
         return context
 
-# Updated ActionDetailView in workflows/views.py
 class ActionDetailView(LoginRequiredMixin, DetailView):
     model = Action
     template_name = 'workflows/action_detail.html'
@@ -61,6 +61,11 @@ class ActionDetailView(LoginRequiredMixin, DetailView):
             # Create a lookup dictionary of datasource objects
             for ds in DataSource.objects.filter(id__in=datasource_ids):
                 datasources_dict[ds.id] = ds
+        
+        # If this is a database_query action, get all database connections
+        if self.object.action_type == 'database_query':
+            from datasources.connection_models import DatabaseConnection
+            context['database_connections'] = DatabaseConnection.objects.all()
                 
         context['datasources'] = datasources_dict
         
@@ -105,6 +110,54 @@ class DataSourceRefreshActionUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, _('Data Source Refresh action updated successfully.'))
         return super().form_valid(form)
 
+class DatabaseQueryActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new Database Query action.
+    """
+    model = Action
+    form_class = DatabaseQueryActionForm
+    template_name = 'workflows/database_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Database Query action created successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources for context
+        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
+        
+        return context
+
+class DatabaseQueryActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating a Database Query action.
+    """
+    model = Action
+    form_class = DatabaseQueryActionForm
+    template_name = 'workflows/database_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Database Query action updated successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources for context
+        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
+        
+        return context
 
 class RunActionView(LoginRequiredMixin, View):
     """
@@ -196,6 +249,21 @@ class RunActionView(LoginRequiredMixin, View):
                                 messages.success(request, _('Action executed successfully. ') + detail_msg)
                             else:
                                 messages.success(request, _('Action executed successfully.'))
+                        # For DatabaseQuery action, show more details
+                        elif action.action_type == 'database_query':
+                            # Format a more detailed success message
+                            query_details = []
+                            if 'execution_time' in result:
+                                query_details.append(f"Execution time: {result['execution_time']}")
+                            if 'rows_affected' in result:
+                                query_details.append(f"Rows affected/returned: {result['rows_affected']}")
+                                
+                            detail_msg = ", ".join(query_details) if query_details else ""
+                            
+                            if detail_msg:
+                                messages.success(request, _('Query executed successfully. ') + detail_msg)
+                            else:
+                                messages.success(request, _('Query executed successfully.'))
                         else:
                             messages.success(request, _('Action executed successfully.'))
                     else:
@@ -253,52 +321,3 @@ class RunActionView(LoginRequiredMixin, View):
             messages.error(request, _('Error running action: {} (See server logs for details)').format(str(e)))
         
         return redirect('workflows:action_detail', pk=pk)
-
-class DatabaseQueryActionCreateView(LoginRequiredMixin, CreateView):
-    """
-    View for creating a new Database Query action.
-    """
-    model = Action
-    form_class = DatabaseQueryActionForm
-    template_name = 'workflows/database_query_action_form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
-    
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        form.instance.modified_by = self.request.user
-        messages.success(self.request, _('Database Query action created successfully.'))
-        return super().form_valid(form)
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Add available data sources for context
-        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
-        
-        return context
-
-class DatabaseQueryActionUpdateView(LoginRequiredMixin, UpdateView):
-    """
-    View for updating a Database Query action.
-    """
-    model = Action
-    form_class = DatabaseQueryActionForm
-    template_name = 'workflows/database_query_action_form.html'
-    
-    def get_success_url(self):
-        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
-    
-    def form_valid(self, form):
-        form.instance.modified_by = self.request.user
-        messages.success(self.request, _('Database Query action updated successfully.'))
-        return super().form_valid(form)
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Add available data sources for context
-        context['datasources'] = DataSource.objects.filter(type='database').order_by('name')
-        
-        return context
