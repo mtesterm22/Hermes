@@ -716,3 +716,221 @@ class FileCreateActionForm(forms.ModelForm):
             action.save()
             
         return action
+
+class ProfileCheckActionForm(forms.ModelForm):
+    """
+    Form for the Profile Check action.
+    """
+    
+    # Profile identifier options
+    ID_TYPE_CHOICES = [
+        ('unique_id', _('Unique ID')),
+        ('email', _('Email Address')),
+        ('id', _('Internal ID')),
+        ('attribute', _('Attribute (format: name:value)')),
+    ]
+    
+    # Check type options
+    CHECK_TYPE_CHOICES = [
+        ('exists', _('Check if attribute exists')),
+        ('not_exists', _('Check if attribute does not exist')),
+        ('exists_any_from_datasource', _('Check if any attributes from datasource exist')),
+        ('compare_value', _('Compare attribute to value')),
+        ('compare_attributes', _('Compare two attributes')),
+    ]
+    
+    # Comparison operator options
+    COMPARISON_OPERATOR_CHOICES = [
+        ('equals', _('Equals (==)')),
+        ('not_equals', _('Not Equals (!=)')),
+        ('contains', _('Contains')),
+        ('not_contains', _('Does Not Contain')),
+        ('greater_than', _('Greater Than (>)')),
+        ('less_than', _('Less Than (<)')),
+        ('greater_than_or_equal', _('Greater Than or Equal (>=)')),
+        ('less_than_or_equal', _('Less Than or Equal (<=)')),
+        ('matches_regex', _('Matches Regex Pattern')),
+    ]
+    
+    # Basic fields
+    profile_identifier = forms.CharField(
+        required=True,
+        label=_('Profile Identifier'),
+        help_text=_('Value to identify the user profile'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    id_type = forms.ChoiceField(
+        choices=ID_TYPE_CHOICES,
+        initial='unique_id',
+        required=True,
+        label=_('Identifier Type'),
+        help_text=_('Type of identifier used to find the profile'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    check_type = forms.ChoiceField(
+        choices=CHECK_TYPE_CHOICES,
+        initial='exists',
+        required=True,
+        label=_('Check Type'),
+        help_text=_('Type of check to perform'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Attribute fields
+    attribute_name = forms.CharField(
+        required=False,
+        label=_('Attribute Name'),
+        help_text=_('Name of the attribute to check'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Comparison fields
+    comparison_value = forms.CharField(
+        required=False,
+        label=_('Comparison Value'),
+        help_text=_('Value to compare the attribute against'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    comparison_operator = forms.ChoiceField(
+        choices=COMPARISON_OPERATOR_CHOICES,
+        initial='equals',
+        required=False,
+        label=_('Comparison Operator'),
+        help_text=_('Operator to use for comparison'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    compare_to_attribute = forms.CharField(
+        required=False,
+        label=_('Compare to Attribute'),
+        help_text=_('Name of another attribute to compare with'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Data source filtering (optional)
+    datasource = forms.ModelChoiceField(
+        queryset=DataSource.objects.all().order_by('name'),
+        required=False,
+        label=_('Restrict to Data Source'),
+        help_text=_('Optionally restrict the check to attributes from a specific data source'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    class Meta:
+        model = Action
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        check_type = cleaned_data.get('check_type')
+        attribute_name = cleaned_data.get('attribute_name')
+        comparison_value = cleaned_data.get('comparison_value')
+        comparison_operator = cleaned_data.get('comparison_operator')
+        compare_to_attribute = cleaned_data.get('compare_to_attribute')
+        
+        # Validate based on check type
+        if check_type in ['exists', 'not_exists', 'compare_value', 'compare_attributes'] and not attribute_name:
+            self.add_error('attribute_name', _('Attribute name is required for this check type'))
+        
+        if check_type == 'compare_value' and not comparison_value:
+            self.add_error('comparison_value', _('Comparison value is required for value comparison'))
+        
+        if check_type == 'compare_value' and not comparison_operator:
+            self.add_error('comparison_operator', _('Comparison operator is required for value comparison'))
+        
+        if check_type == 'compare_attributes' and not compare_to_attribute:
+            self.add_error('compare_to_attribute', _('Second attribute name is required for attribute comparison'))
+        
+        if check_type == 'compare_attributes' and not comparison_operator:
+            self.add_error('comparison_operator', _('Comparison operator is required for attribute comparison'))
+        
+        if check_type == 'exists_any_from_datasource' and not cleaned_data.get('datasource'):
+            self.add_error('datasource', _('Data source is required for this check type'))
+        
+        return cleaned_data
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # If we're editing an existing action, populate the form with existing values
+        if self.instance and self.instance.pk and self.instance.parameters:
+            params = self.instance.parameters
+            
+            # Fill in all the fields from parameters
+            self.fields['profile_identifier'].initial = params.get('profile_identifier', '')
+            self.fields['id_type'].initial = params.get('id_type', 'unique_id')
+            self.fields['check_type'].initial = params.get('check_type', 'exists')
+            self.fields['attribute_name'].initial = params.get('attribute_name', '')
+            self.fields['comparison_value'].initial = params.get('comparison_value', '')
+            self.fields['comparison_operator'].initial = params.get('comparison_operator', 'equals')
+            self.fields['compare_to_attribute'].initial = params.get('compare_to_attribute', '')
+            
+            # Handle datasource if specified
+            datasource_id = params.get('datasource_id')
+            if datasource_id:
+                try:
+                    from datasources.models import DataSource
+                    self.fields['datasource'].initial = datasource_id
+                except (ValueError, DataSource.DoesNotExist):
+                    pass
+    
+    def save(self, commit=True):
+        action = super().save(commit=False)
+        
+        # Set the action type
+        action.action_type = 'profile_check'
+        
+        # Prepare parameters
+        params = {
+            'profile_identifier': self.cleaned_data.get('profile_identifier', ''),
+            'id_type': self.cleaned_data.get('id_type', 'unique_id'),
+            'check_type': self.cleaned_data.get('check_type', 'exists'),
+            'attribute_name': self.cleaned_data.get('attribute_name', ''),
+            'comparison_value': self.cleaned_data.get('comparison_value', ''),
+            'comparison_operator': self.cleaned_data.get('comparison_operator', 'equals'),
+            'compare_to_attribute': self.cleaned_data.get('compare_to_attribute', '')
+        }
+        
+        # Add datasource ID if specified
+        datasource = self.cleaned_data.get('datasource')
+        if datasource:
+            params['datasource_id'] = datasource.id
+        
+        # Save parameters to the action
+        action.parameters = params
+        
+        if commit:
+            action.save()
+            
+        return action
