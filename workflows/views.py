@@ -6,6 +6,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+import json
 
 from .workflow_engine import execute_workflow
 from .models import Workflow, WorkflowAction, Action, Schedule, WorkflowExecution, ActionExecution
