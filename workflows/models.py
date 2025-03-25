@@ -22,6 +22,7 @@ class Action(models.Model):
         ('csv_process', _('Process CSV')),
         ('iterator', _('Iterator')),
         ('profile_check', _('Profile Check')),
+        ('profile_query', _('Profile Query')),
         ('ad_modify', _('Modify Active Directory')),
         ('email_send', _('Send Email')),
         ('user_create', _('Create User')),

@@ -17,6 +17,7 @@ from .actions.datasource_refresh_action import DataSourceRefreshAction
 from .actions.file_create_action import FileCreateAction
 from .actions.profile_check_action import ProfileCheckAction
 from .actions.iterator_action import IteratorAction
+from .actions.profile_query_action import ProfileQueryAction
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class ActionExecutor:
         'datasource_refresh': DataSourceRefreshAction,
         'file_create': FileCreateAction,
         'profile_check': ProfileCheckAction,
+        'profile_query': ProfileQueryAction,
         'iterator' : IteratorAction
         # Add more action handlers here as they are implemented
     }

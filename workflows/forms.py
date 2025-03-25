@@ -1128,3 +1128,315 @@ class IteratorActionForm(forms.ModelForm):
             action.save()
             
         return action
+
+class ProfileQueryActionForm(forms.ModelForm):
+    """
+    Form for the Profile Query action.
+    
+    This action allows querying user profiles to find those matching specific attribute criteria.
+    It returns lists of users rather than validating a single user profile.
+    """
+    
+    # Query type options
+    QUERY_TYPE_CHOICES = [
+        ('all_profiles', _('Get All Profiles')),
+        ('attribute_exists', _('Attribute Exists')),
+        ('attribute_not_exists', _('Attribute Does Not Exist')),
+        ('attribute_compare', _('Compare Attribute Value')),
+        ('datasource_exists', _('Has Data From Source')),
+    ]
+    
+    # Comparison operator options (same as ProfileCheckAction)
+    COMPARISON_OPERATOR_CHOICES = [
+        ('equals', _('Equals (==)')),
+        ('not_equals', _('Not Equals (!=)')),
+        ('contains', _('Contains')),
+        ('not_contains', _('Does Not Contain')),
+        ('greater_than', _('Greater Than (>)')),
+        ('less_than', _('Less Than (<)')),
+        ('greater_than_or_equal', _('Greater Than or Equal (>=)')),
+        ('less_than_or_equal', _('Less Than or Equal (<=)')),
+        ('starts_with', _('Starts With')),
+        ('ends_with', _('Ends With')),
+        ('matches_regex', _('Matches Regex Pattern')),
+        ('is_null', _('Is Empty')),
+        ('is_not_null', _('Is Not Empty')),
+    ]
+    
+    # Detail level options
+    DETAIL_LEVEL_CHOICES = [
+        ('basic', _('Basic (ID, name, email)')),
+        ('full', _('Full (All profile fields)')),
+        ('custom', _('Custom Fields')),
+    ]
+    
+    # Group by options  
+    GROUP_BY_CHOICES = [
+        ('', _('No Grouping')),
+        ('first_letter', _('First Letter of Name')),
+        ('status', _('Profile Status')),
+        ('first_name', _('First Name')),
+        ('last_name', _('Last Name')),
+    ]
+    
+    # Basic fields
+    query_type = forms.ChoiceField(
+        choices=QUERY_TYPE_CHOICES,
+        initial='attribute_exists',
+        required=True,
+        label=_('Query Type'),
+        help_text=_('Type of query to perform on profiles'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Attribute fields
+    attribute_name = forms.CharField(
+        required=False,
+        label=_('Attribute Name'),
+        help_text=_('Name of the attribute to check'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Comparison fields
+    comparison_value = forms.CharField(
+        required=False,
+        label=_('Comparison Value'),
+        help_text=_('Value to compare the attribute against'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    comparison_operator = forms.ChoiceField(
+        choices=COMPARISON_OPERATOR_CHOICES,
+        initial='equals',
+        required=False,
+        label=_('Comparison Operator'),
+        help_text=_('Operator to use for comparison'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Data source filtering (optional)
+    datasource = forms.ModelChoiceField(
+        queryset=DataSource.objects.all().order_by('name'),
+        required=False,
+        label=_('Data Source'),
+        help_text=_('Optionally restrict the query to attributes from a specific data source'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Output options
+    max_results = forms.IntegerField(
+        initial=1000,
+        min_value=0,
+        required=False,
+        label=_('Maximum Results'),
+        help_text=_('Maximum number of profiles to return (0 for unlimited)'),
+        widget=forms.NumberInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    detail_level = forms.ChoiceField(
+        choices=DETAIL_LEVEL_CHOICES,
+        initial='basic',
+        required=True,
+        label=_('Result Detail Level'),
+        help_text=_('Amount of information to include for each profile'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    custom_fields = forms.CharField(
+        required=False,
+        label=_('Custom Fields'),
+        help_text=_('Comma-separated list of fields to include in results (for custom detail level)'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md',
+            'placeholder': 'id,unique_id,first_name,last_name,email,status'
+        })
+    )
+    
+    include_attributes = forms.BooleanField(
+        required=False,
+        initial=False,
+        label=_('Include All Attributes'),
+        help_text=_('Include all attribute values in the result (may increase result size)'),
+        widget=forms.CheckboxInput(attrs={
+            'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+        })
+    )
+    
+    group_by = forms.ChoiceField(
+        choices=GROUP_BY_CHOICES,
+        required=False,
+        label=_('Group Results By'),
+        help_text=_('Optionally group results by a field or attribute'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Advanced: custom attribute to group by
+    custom_group_by = forms.CharField(
+        required=False,
+        label=_('Custom Group By Field/Attribute'),
+        help_text=_('Name of attribute or field to group by (if not selecting from predefined options)'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    class Meta:
+        model = Action
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        query_type = cleaned_data.get('query_type')
+        attribute_name = cleaned_data.get('attribute_name')
+        comparison_value = cleaned_data.get('comparison_value')
+        comparison_operator = cleaned_data.get('comparison_operator')
+        datasource = cleaned_data.get('datasource')
+        
+        # Validate based on query type
+        if query_type in ['attribute_exists', 'attribute_not_exists', 'attribute_compare'] and not attribute_name:
+            self.add_error('attribute_name', _('Attribute name is required for this query type'))
+        
+        if query_type == 'attribute_compare':
+            if not comparison_operator:
+                self.add_error('comparison_operator', _('Comparison operator is required for comparison query'))
+            
+            if not comparison_value and comparison_operator not in ['is_null', 'is_not_null']:
+                self.add_error('comparison_value', _('Comparison value is required for this operator'))
+        
+        if query_type == 'datasource_exists' and not datasource:
+            self.add_error('datasource', _('Data source is required for this query type'))
+        
+        # Validate custom fields
+        detail_level = cleaned_data.get('detail_level')
+        custom_fields = cleaned_data.get('custom_fields')
+        
+        if detail_level == 'custom' and not custom_fields:
+            self.add_error('custom_fields', _('Custom fields are required when using custom detail level'))
+        
+        # Validate grouping
+        group_by = cleaned_data.get('group_by')
+        custom_group_by = cleaned_data.get('custom_group_by')
+        
+        if group_by == 'custom' and not custom_group_by:
+            self.add_error('custom_group_by', _('Custom group by field is required when using custom grouping'))
+        
+        return cleaned_data
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add 'custom' option to group by if not already there
+        has_custom = False
+        for choice in self.fields['group_by'].choices:
+            if choice[0] == 'custom':
+                has_custom = True
+                break
+                
+        if not has_custom:
+            self.fields['group_by'].choices += [('custom', _('Custom Field/Attribute'))]
+        
+        # If we're editing an existing action, populate the form with existing values
+        if self.instance and self.instance.pk and self.instance.parameters:
+            params = self.instance.parameters
+            
+            # Fill in all the fields from parameters
+            self.fields['query_type'].initial = params.get('query_type', 'attribute_exists')
+            self.fields['attribute_name'].initial = params.get('attribute_name', '')
+            self.fields['comparison_value'].initial = params.get('comparison_value', '')
+            self.fields['comparison_operator'].initial = params.get('comparison_operator', 'equals')
+            self.fields['max_results'].initial = params.get('max_results', 1000)
+            self.fields['detail_level'].initial = params.get('detail_level', 'basic')
+            self.fields['include_attributes'].initial = params.get('include_attributes', False)
+            
+            # Handle custom fields (convert list to comma-separated string)
+            custom_fields = params.get('custom_fields', [])
+            if isinstance(custom_fields, list):
+                self.fields['custom_fields'].initial = ','.join(custom_fields)
+            else:
+                self.fields['custom_fields'].initial = custom_fields
+            
+            # Handle group by settings
+            self.fields['group_by'].initial = params.get('group_by', '')
+            self.fields['custom_group_by'].initial = params.get('custom_group_by', '')
+            
+            # Handle datasource if specified
+            datasource_id = params.get('datasource_id')
+            if datasource_id:
+                try:
+                    from datasources.models import DataSource
+                    self.fields['datasource'].initial = datasource_id
+                except (ValueError, DataSource.DoesNotExist):
+                    pass
+    
+    def clean_custom_fields(self):
+        """Convert comma-separated custom fields to a list."""
+        custom_fields = self.cleaned_data.get('custom_fields')
+        
+        if custom_fields:
+            return [field.strip() for field in custom_fields.split(',') if field.strip()]
+        
+        return []
+    
+    def save(self, commit=True):
+        action = super().save(commit=False)
+        
+        # Set the action type
+        action.action_type = 'profile_query'
+        
+        # Prepare parameters
+        params = {
+            'query_type': self.cleaned_data.get('query_type', 'attribute_exists'),
+            'attribute_name': self.cleaned_data.get('attribute_name', ''),
+            'comparison_value': self.cleaned_data.get('comparison_value', ''),
+            'comparison_operator': self.cleaned_data.get('comparison_operator', 'equals'),
+            'max_results': self.cleaned_data.get('max_results', 1000),
+            'detail_level': self.cleaned_data.get('detail_level', 'basic'),
+            'custom_fields': self.cleaned_data.get('custom_fields', []),
+            'include_attributes': self.cleaned_data.get('include_attributes', False),
+            'group_by': self.cleaned_data.get('group_by', '')
+        }
+        
+        # Add custom group by if needed
+        if params['group_by'] == 'custom':
+            params['group_by'] = self.cleaned_data.get('custom_group_by', '')
+        
+        # Add datasource ID if specified
+        datasource = self.cleaned_data.get('datasource')
+        if datasource:
+            params['datasource_id'] = datasource.id
+        
+        # Save parameters to the action
+        action.parameters = params
+        
+        if commit:
+            action.save()
+            
+        return action

@@ -9,7 +9,9 @@ from .action_views import (
     ProfileCheckActionCreateView,
     ProfileCheckActionUpdateView,
     IteratorActionCreateView,
-    IteratorActionUpdateView
+    IteratorActionUpdateView,
+    ProfileQueryActionCreateView,
+    ProfileQueryActionUpdateView
 )
 
 app_name = 'workflows'
@@ -49,6 +51,9 @@ urlpatterns = [
     path('actions/<int:pk>/update/profile-check/', action_views.ProfileCheckActionUpdateView.as_view(), name='profile_check_action_update'),
     path('actions/create/iterator/', action_views.IteratorActionCreateView.as_view(), name='iterator_action_create'),
     path('actions/<int:pk>/update/iterator/', action_views.IteratorActionUpdateView.as_view(), name='iterator_action_update'),
+    path('actions/create/profile-query/', action_views.ProfileQueryActionCreateView.as_view(), name='profile_query_action_create'),
+    path('api/datasource/<str:datasource_id>/attributes/', views.DatasourceAttributesAPIView.as_view(), name='datasource_attributes_api'),
+    path('actions/<int:pk>/update/profile-query/', action_views.ProfileQueryActionUpdateView.as_view(), name='profile_query_action_update'),
     
     # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),

@@ -89,6 +89,21 @@
                     </div>
                 </div>
 
+                <!-- Profile Query Action (NEW) -->
+                <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
+                    <div class="px-4 py-5 sm:px-6 bg-emerald-50">
+                        <h3 class="text-lg font-medium text-emerald-800">Profile Query</h3>
+                    </div>
+                    <div class="px-4 py-5 sm:p-6">
+                        <p class="text-sm text-gray-500 mb-4">
+                            Search for user profiles matching attribute criteria. Use this to generate lists of users for reporting or bulk processing.
+                        </p>
+                        <a href="{% url 'workflows:profile_query_action_create' %}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-emerald-700 bg-emerald-100 hover:bg-emerald-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                            Create Action
+                        </a>
+                    </div>
+                </div>
+
                 <!-- File Create Action -->
                 <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
                     <div class="px-4 py-5 sm:px-6 bg-purple-50">
@@ -103,7 +118,6 @@
                         </a>
                     </div>
                 </div>
-
 
                 <!-- Email Send Action (Future) -->
                 <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200 opacity-50">
@@ -140,7 +154,7 @@
                 <h3 class="text-lg leading-6 font-medium text-gray-900">Other Action Types</h3>
                 <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     {% for action_type, display_name in action_types %}
-                        {% if action_type not in 'database_query,datasource_refresh,email_send,ad_modify' %}
+                        {% if action_type not in 'database_query,datasource_refresh,email_send,ad_modify,profile_check,profile_query,iterator,file_create' %}
                             <div class="flex items-center">
                                 <a href="{% url 'workflows:action_create' %}?action_type={{ action_type }}" class="text-blue-600 hover:text-blue-900">
                                     {{ display_name }}
@@ -153,4 +167,4 @@
         </div>
     </div>
 </div>
-{% endblock %}s
+{% endblock %}

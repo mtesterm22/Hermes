@@ -1,0 +1,507 @@
+{# templates/workflows/profile_query_action_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Profile Query Action{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Profile Query Action
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define general information about this action.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Active field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">Active</label>
+                                    <p class="text-gray-500">Enable or disable this action.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Query Configuration</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure the profile query criteria.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Query Type -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.query_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.query_type.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.query_type }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.query_type.help_text }}
+                            </p>
+                            {% if form.query_type.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.query_type.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Datasource -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.datasource.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.datasource.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.datasource }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.datasource.help_text }}
+                            </p>
+                            {% if form.datasource.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.datasource.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Attribute Name -->
+                        <div class="sm:col-span-3 attribute-field">
+                            <label for="{{ form.attribute_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.attribute_name.label }}
+                            </label>
+                            <div class="mt-1">
+                                <div class="relative">
+                                    {{ form.attribute_name }}
+                                    <datalist id="attribute-list">
+                                        <!-- Options will be populated dynamically -->
+                                    </datalist>
+                                    <script>
+                                        // Directly attach the datalist to the input
+                                        document.getElementById("{{ form.attribute_name.id_for_label }}").setAttribute("list", "attribute-list");
+                                    </script>
+                                </div>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.attribute_name.help_text }}
+                            </p>
+                            {% if form.attribute_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.attribute_name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Comparison Operator -->
+                        <div class="sm:col-span-3 comparison-field">
+                            <label for="{{ form.comparison_operator.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.comparison_operator.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.comparison_operator }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.comparison_operator.help_text }}
+                            </p>
+                            {% if form.comparison_operator.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.comparison_operator.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Comparison Value -->
+                        <div class="sm:col-span-6 comparison-value-field">
+                            <label for="{{ form.comparison_value.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.comparison_value.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.comparison_value }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.comparison_value.help_text }}
+                            </p>
+                            {% if form.comparison_value.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.comparison_value.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Output Configuration</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure how results are formatted and returned.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Max Results -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.max_results.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.max_results.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.max_results }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.max_results.help_text }}
+                            </p>
+                            {% if form.max_results.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.max_results.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Detail Level -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.detail_level.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.detail_level.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.detail_level }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.detail_level.help_text }}
+                            </p>
+                            {% if form.detail_level.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.detail_level.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Include Attributes -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.include_attributes }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.include_attributes.id_for_label }}" class="font-medium text-gray-700">
+                                        {{ form.include_attributes.label }}
+                                    </label>
+                                    <p class="text-gray-500">{{ form.include_attributes.help_text }}</p>
+                                </div>
+                            </div>
+                            {% if form.include_attributes.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.include_attributes.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Custom Fields -->
+                        <div class="sm:col-span-6 custom-fields-field">
+                            <label for="{{ form.custom_fields.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.custom_fields.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.custom_fields }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.custom_fields.help_text }}
+                            </p>
+                            {% if form.custom_fields.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.custom_fields.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Group By -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.group_by.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.group_by.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.group_by }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.group_by.help_text }}
+                            </p>
+                            {% if form.group_by.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.group_by.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Custom Group By -->
+                        <div class="sm:col-span-3 custom-group-by-field">
+                            <label for="{{ form.custom_group_by.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.custom_group_by.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.custom_group_by }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.custom_group_by.help_text }}
+                            </p>
+                            {% if form.custom_group_by.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.custom_group_by.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'workflows:actions' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const queryTypeSelect = document.getElementById('{{ form.query_type.id_for_label }}');
+        const detailLevelSelect = document.getElementById('{{ form.detail_level.id_for_label }}');
+        const groupBySelect = document.getElementById('{{ form.group_by.id_for_label }}');
+        
+        // Fields that need conditional display
+        const attributeField = document.querySelector('.attribute-field');
+        const comparisonField = document.querySelector('.comparison-field');
+        const comparisonValueField = document.querySelector('.comparison-value-field');
+        const customFieldsField = document.querySelector('.custom-fields-field');
+        const customGroupByField = document.querySelector('.custom-group-by-field');
+        
+        // Debugging function
+        function debugAttributes(message, data) {
+            console.log(`[Attributes Debug] ${message}`, data);
+        }
+        
+        function updateFieldVisibility() {
+            const queryType = queryTypeSelect.value;
+            const detailLevel = detailLevelSelect.value;
+            const groupBy = groupBySelect.value;
+            
+            // Hide all conditional query fields first
+            [comparisonField, comparisonValueField].forEach(field => {
+                if (field) field.style.display = 'none';
+            });
+            
+            // Show/hide attribute name field based on query type
+            if (attributeField) {
+                attributeField.style.display = ['attribute_exists', 'attribute_not_exists', 'attribute_compare'].includes(queryType) ? 'block' : 'none';
+            }
+            
+            // Show comparison fields for attribute_compare
+            if (queryType === 'attribute_compare') {
+                if (comparisonField) comparisonField.style.display = 'block';
+                if (comparisonValueField) comparisonValueField.style.display = 'block';
+                
+                // Check if we need to hide comparison value field based on operator
+                const operator = document.getElementById('{{ form.comparison_operator.id_for_label }}').value;
+                if (['is_null', 'is_not_null'].includes(operator)) {
+                    if (comparisonValueField) comparisonValueField.style.display = 'none';
+                }
+            }
+            
+            // Show/hide custom fields input based on detail level
+            if (customFieldsField) {
+                customFieldsField.style.display = detailLevel === 'custom' ? 'block' : 'none';
+            }
+            
+            // Show/hide custom group by field based on group by selection
+            if (customGroupByField) {
+                customGroupByField.style.display = groupBy === 'custom' ? 'block' : 'none';
+            }
+        }
+        
+        // Function to fetch attributes for a datasource
+        function loadAttributesForDatasource(datasourceId) {
+            debugAttributes('Loading attributes for datasource', datasourceId);
+            
+            // If no datasource selected, load all attributes
+            let url = '/workflows/api/datasource/';
+            if (!datasourceId) {
+                url += 'all/attributes/';
+                debugAttributes('Using ALL attributes URL', url);
+            } else {
+                url += datasourceId + '/attributes/';
+                debugAttributes('Using specific datasource URL', url);
+            }
+            
+            // Show loading indicator
+            const attributeField = document.getElementById('{{ form.attribute_name.id_for_label }}');
+            if (attributeField) {
+                attributeField.placeholder = 'Loading attributes...';
+                debugAttributes('Input field found, set loading placeholder', attributeField.id);
+            } else {
+                debugAttributes('Input field NOT found', '{{ form.attribute_name.id_for_label }}');
+            }
+            
+            // Make sure input is connected to datalist
+            attributeField.setAttribute('list', 'attribute-list');
+            
+            // Make AJAX request to get attributes
+            fetch(url)
+                .then(response => {
+                    debugAttributes('Fetch response status', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    debugAttributes('Received data', data);
+                    
+                    // Get the datalist
+                    const dataList = document.getElementById('attribute-list');
+                    if (dataList) {
+                        debugAttributes('Found datalist', dataList.id);
+                        
+                        // Clear existing options
+                        dataList.innerHTML = '';
+                        
+                        // Add new options
+                        if (data.attributes && data.attributes.length > 0) {
+                            debugAttributes('Adding attributes', data.attributes.length);
+                            data.attributes.forEach(attr => {
+                                const option = document.createElement('option');
+                                option.value = attr;
+                                dataList.appendChild(option);
+                            });
+                            
+                            if (attributeField) {
+                                attributeField.placeholder = 'Enter attribute name';
+                            }
+                        } else {
+                            debugAttributes('No attributes found', data);
+                            if (attributeField) {
+                                attributeField.placeholder = 'No attributes found for this datasource';
+                            }
+                        }
+                    } else {
+                        debugAttributes('Datalist element NOT found', 'attribute-list');
+                    }
+                })
+                .catch(error => {
+                    debugAttributes('Error fetching attributes', error);
+                    if (attributeField) {
+                        attributeField.placeholder = 'Error loading attributes';
+                    }
+                });
+        }
+        
+        // Set up event listeners for dynamic form updates
+        if (queryTypeSelect) {
+            queryTypeSelect.addEventListener('change', updateFieldVisibility);
+        }
+        
+        if (detailLevelSelect) {
+            detailLevelSelect.addEventListener('change', updateFieldVisibility);
+        }
+        
+        if (groupBySelect) {
+            groupBySelect.addEventListener('change', updateFieldVisibility);
+        }
+        
+        // Add listener for comparison operator changes
+        const comparisonOperatorSelect = document.getElementById('{{ form.comparison_operator.id_for_label }}');
+        if (comparisonOperatorSelect) {
+            comparisonOperatorSelect.addEventListener('change', function() {
+                const operator = this.value;
+                // Hide comparison value for is_null/is_not_null operators
+                if (comparisonValueField) {
+                    comparisonValueField.style.display = ['is_null', 'is_not_null'].includes(operator) ? 'none' : 'block';
+                }
+            });
+        }
+        
+        // Set up event listener for datasource select
+        const datasourceSelect = document.getElementById('{{ form.datasource.id_for_label }}');
+        if (datasourceSelect) {
+            debugAttributes('Found datasource select', datasourceSelect.id);
+            
+            // Set up change event
+            datasourceSelect.addEventListener('change', function() {
+                debugAttributes('Datasource changed to', this.value);
+                loadAttributesForDatasource(this.value);
+            });
+            
+            // Initial load
+            if (datasourceSelect.value) {
+                debugAttributes('Initial datasource value', datasourceSelect.value);
+                loadAttributesForDatasource(datasourceSelect.value);
+            } else {
+                debugAttributes('No initial datasource value', 'Loading all attributes');
+                loadAttributesForDatasource(null);
+            }
+        } else {
+            debugAttributes('Datasource select NOT found', '{{ form.datasource.id_for_label }}');
+        }
+        
+        // Set initial visibility
+        updateFieldVisibility();
+    });
+</script>
+{% endblock %}

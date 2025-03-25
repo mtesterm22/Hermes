@@ -7,6 +7,8 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 import json
+from django.http import JsonResponse
+from users.profile_integration import AttributeSource
 
 from .workflow_engine import execute_workflow
 from .models import Workflow, WorkflowAction, Action, Schedule, WorkflowExecution, ActionExecution
@@ -452,3 +454,48 @@ class WorkflowExecutionDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['action_executions'] = self.object.action_executions.all().order_by('workflow_action__sequence')
         return context
+
+class DatasourceAttributesAPIView(LoginRequiredMixin, View):
+    """
+    API view that returns all attribute names available for a given datasource
+    """
+    def get(self, request, datasource_id):
+        try:
+            if datasource_id == 'all':
+                # Return all attributes from all datasources
+                attributes = AttributeSource.objects.filter(
+                    is_current=True
+                ).values_list('attribute_name', flat=True).distinct().order_by('attribute_name')
+                
+                return JsonResponse({
+                    'success': True,
+                    'datasource_id': 'all',
+                    'attributes': list(attributes)
+                })
+            else:
+                # Try to convert to integer for specific datasource
+                try:
+                    ds_id = int(datasource_id)
+                    # Get all unique attribute names for this datasource
+                    attributes = AttributeSource.objects.filter(
+                        datasource_id=ds_id,
+                        is_current=True
+                    ).values_list('attribute_name', flat=True).distinct().order_by('attribute_name')
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'datasource_id': ds_id,
+                        'attributes': list(attributes)
+                    })
+                except ValueError:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f"Invalid datasource ID: {datasource_id}"
+                    }, status=400)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)

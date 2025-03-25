@@ -20,13 +20,15 @@ import json
 from workflows.models import Action, WorkflowExecution, WorkflowAction, ActionExecution, Workflow
 from workflows.action_executor import ActionExecutor
 from datasources.models import DataSource
+from users.profile_integration import AttributeSource
 from .forms import (
     DataSourceRefreshActionForm, 
     ActionTypeForm, 
     DatabaseQueryActionForm,
     FileCreateActionForm,
     ProfileCheckActionForm,
-    IteratorActionForm  
+    IteratorActionForm,
+    ProfileQueryActionForm  
 )
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
@@ -465,3 +467,68 @@ class IteratorActionUpdateView(LoginRequiredMixin, UpdateView):
         except (AttributeError, IndexError):
             pass
         return kwargs
+
+class ProfileQueryActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new Profile Query action.
+    """
+    model = Action
+    form_class = ProfileQueryActionForm
+    template_name = 'workflows/profile_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Profile Query action created successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources
+        context['datasources'] = DataSource.objects.all().order_by('name')
+        
+        # Add list of possible attributes for autocomplete 
+        # Get unique attribute names from AttributeSource
+        attributes = AttributeSource.objects.filter(
+            is_current=True
+        ).values_list('attribute_name', flat=True).distinct().order_by('attribute_name')
+        
+        context['available_attributes'] = list(attributes)
+        
+        return context
+
+class ProfileQueryActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating a Profile Query action.
+    """
+    model = Action
+    form_class = ProfileQueryActionForm
+    template_name = 'workflows/profile_query_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Profile Query action updated successfully.'))
+        return super().form_valid(form)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add available data sources
+        context['datasources'] = DataSource.objects.all().order_by('name')
+        
+        # Add list of possible attributes for autocomplete
+        # Get unique attribute names from AttributeSource
+        attributes = AttributeSource.objects.filter(
+            is_current=True
+        ).values_list('attribute_name', flat=True).distinct().order_by('attribute_name')
+        
+        context['available_attributes'] = list(attributes)
+        
+        return context
