@@ -20,6 +20,7 @@ class Action(models.Model):
         ('file_create', _('Create File')),
         ('csv_generate', _('Generate CSV')),
         ('csv_process', _('Process CSV')),
+        ('profile_check', _('Profile Check')),
         ('ad_modify', _('Modify Active Directory')),
         ('email_send', _('Send Email')),
         ('user_create', _('Create User')),

@@ -24,7 +24,8 @@ from .forms import (
     DataSourceRefreshActionForm, 
     ActionTypeForm, 
     DatabaseQueryActionForm,
-    FileCreateActionForm  
+    FileCreateActionForm,
+    ProfileCheckActionForm  
 )
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
@@ -378,3 +379,36 @@ class FileCreateActionUpdateView(LoginRequiredMixin, UpdateView):
         except (AttributeError, IndexError):
             pass
         return kwargs
+
+class ProfileCheckActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new Profile Check action.
+    """
+    model = Action
+    form_class = ProfileCheckActionForm
+    template_name = 'workflows/profile_check_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Profile Check action created successfully.'))
+        return super().form_valid(form)
+
+class ProfileCheckActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating a Profile Check action.
+    """
+    model = Action
+    form_class = ProfileCheckActionForm
+    template_name = 'workflows/profile_check_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Profile Check action updated successfully.'))
+        return super().form_valid(form)

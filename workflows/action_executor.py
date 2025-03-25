@@ -15,6 +15,7 @@ from .models import Action, ActionExecution, WorkflowExecution
 from .actions.database_action import DatabaseQueryAction
 from .actions.datasource_refresh_action import DataSourceRefreshAction
 from .actions.file_create_action import FileCreateAction
+from .actions.profile_check_action import ProfileCheckAction
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,8 @@ class ActionExecutor:
     ACTION_HANDLERS = {
         'database_query': DatabaseQueryAction,
         'datasource_refresh': DataSourceRefreshAction,
-        'file_create': FileCreateAction
+        'file_create': FileCreateAction,
+        'profile_check': ProfileCheckAction
         # Add more action handlers here as they are implemented
     }
     

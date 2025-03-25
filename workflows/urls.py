@@ -3,7 +3,12 @@ from django.urls import path
 from . import views
 from . import action_views
 from . import designer_views
-from .action_views import FileCreateActionCreateView, FileCreateActionUpdateView
+from .action_views import (
+    FileCreateActionCreateView, 
+    FileCreateActionUpdateView,
+    ProfileCheckActionCreateView,
+    ProfileCheckActionUpdateView
+)
 
 app_name = 'workflows'
 
@@ -38,6 +43,8 @@ urlpatterns = [
     path('actions/<int:pk>/update/database-query/', action_views.DatabaseQueryActionUpdateView.as_view(), name='database_query_action_update'),
     path('actions/create/file-create/', action_views.FileCreateActionCreateView.as_view(), name='file_create_action_create'),
     path('actions/<int:pk>/update/file-create/', action_views.FileCreateActionUpdateView.as_view(), name='file_create_action_update'),
+    path('actions/create/profile-check/', action_views.ProfileCheckActionCreateView.as_view(), name='profile_check_action_create'),
+    path('actions/<int:pk>/update/profile-check/', action_views.ProfileCheckActionUpdateView.as_view(), name='profile_check_action_update'),
     
     # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),
