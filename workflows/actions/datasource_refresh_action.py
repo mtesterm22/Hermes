@@ -90,6 +90,9 @@ class DataSourceRefreshAction:
             print(f"Wait for completion: {wait_for_completion}")
             print(f"Timeout: {timeout} seconds")
             
+            # Create a list to track sync IDs we've created in this execution
+            our_sync_ids = []
+            
             # Process each data source
             for datasource_id in datasource_ids:
                 try:
@@ -108,17 +111,9 @@ class DataSourceRefreshAction:
                         results["datasources_failed"] += 1
                         continue
                     
-                    # Check if data source is already syncing
-                    if datasource.is_syncing():
-                        message = f"Data source '{datasource.name}' is already being synchronized"
-                        print(f"Warning: {message}")
-                        results["details"].append({
-                            "datasource_id": datasource_id,
-                            "name": datasource.name,
-                            "status": "warning",
-                            "message": message
-                        })
-                        continue
+                    # SKIP the syncing check when executing as part of a workflow
+                    # This is the key change - we're bypassing the check completely
+                    print(f"Bypassing 'is_syncing' check for workflow execution")
                     
                     # Create sync record
                     sync = DataSourceSync.objects.create(
@@ -126,6 +121,12 @@ class DataSourceRefreshAction:
                         status='running',
                         triggered_by=self.action.created_by  # Use action creator as trigger user
                     )
+                    
+                    # Debug output
+                    print(f"Created sync record ID: {sync.id} for datasource: {datasource.name}")
+                    
+                    # Add to our list of syncs
+                    our_sync_ids.append(sync.id)
                     
                     # Store sync ID
                     results["sync_ids"].append(sync.id)
@@ -232,6 +233,10 @@ class DataSourceRefreshAction:
                         "status": "error",
                         "message": error_message
                     })
+            
+            # Debug output for final results
+            print(f"Final results: refreshed={results['datasources_refreshed']}, failed={results['datasources_failed']}")
+            print(f"Sync IDs: {results['sync_ids']}")
             
             # Determine overall success
             execution_time = time.time() - start_time

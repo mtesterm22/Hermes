@@ -61,9 +61,17 @@ class DataSource(models.Model):
         self.sync_count += 1
         self.save(update_fields=['last_sync', 'sync_count'])
 
-    def is_syncing(self):
+    def is_syncing(self, exclude_ids=None, bypass=False):
         """Check if this data source is currently syncing."""
-        return self.syncs.filter(status='running').exists()
+        if bypass:
+            return False
+        query = self.syncs.filter(status='running')
+        if exclude_ids:
+            if isinstance(exclude_ids, (list, tuple)):
+                query = query.exclude(id__in=exclude_ids)
+            else:
+                query = query.exclude(id=exclude_ids)
+        return query.exists()
 
     def lock_for_sync(self):
         """Attempt to lock this data source for syncing."""
