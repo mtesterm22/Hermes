@@ -377,6 +377,115 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         context['primary_by_source'] = primary_by_source_list
         
         return context
+
+        # Get profile pages for organization
+        from users.page_models import ProfilePage, PageDataSource, PageAttribute
+
+        # Check if profile pages exist
+        has_pages = ProfilePage.objects.filter(is_visible=True).exists()
+
+        if has_pages:
+            # Get visible pages
+            pages = ProfilePage.objects.filter(is_visible=True).order_by('display_order')
+            
+            # Organize datasources and attributes by page
+            profile_pages = []
+            
+            for page in pages:
+                page_datasources = []
+                
+                # Get data sources for this page
+                for page_ds in PageDataSource.objects.filter(page=page).order_by('display_order'):
+                    # Only include if this person has attributes from this data source
+                    if AttributeSource.objects.filter(
+                        person=self.object,
+                        datasource=page_ds.datasource,
+                        is_current=True
+                    ).exists():
+                        # Get attributes for this page data source
+                        page_attributes = []
+                        
+                        # Get available PageAttribute configurations
+                        page_attrs = PageAttribute.objects.filter(
+                            page_datasource=page_ds,
+                            is_visible=True
+                        ).order_by('display_order')
+                        
+                        # Map attribute names to configurations
+                        attr_configs = {attr.attribute_name: attr for attr in page_attrs}
+                        
+                        # Get all attributes for this person from this data source
+                        attrs = AttributeSource.objects.filter(
+                            person=self.object,
+                            datasource=page_ds.datasource,
+                            is_current=True
+                        ).select_related('mapping')
+                        
+                        # Group by attribute name
+                        attr_groups = {}
+                        for attr in attrs:
+                            if attr.attribute_name not in attr_groups:
+                                attr_groups[attr.attribute_name] = []
+                            attr_groups[attr.attribute_name].append(attr)
+                        
+                        # Process highlighted attributes first
+                        highlighted_attrs = []
+                        regular_attrs = []
+                        
+                        for attr_name, attr_list in attr_groups.items():
+                            # Sort by priority if multiple values
+                            attr_list.sort(key=lambda x: -x.mapping.priority if x.mapping else 0)
+                            
+                            # Create display information for this attribute
+                            attr_display = {
+                                'name': attr_name,
+                                'values': attr_list,
+                                'is_highlighted': False,
+                                'display_name': attr_name.replace('_', ' ').title(),
+                                'display_order': 999
+                            }
+                            
+                            # Apply page attribute configuration if available
+                            if attr_name in attr_configs:
+                                config = attr_configs[attr_name]
+                                attr_display['is_highlighted'] = config.is_highlighted
+                                attr_display['display_name'] = config.get_display_name()
+                                attr_display['display_order'] = config.display_order
+                            
+                            # Add to the appropriate list
+                            if attr_display['is_highlighted']:
+                                highlighted_attrs.append(attr_display)
+                            else:
+                                regular_attrs.append(attr_display)
+                        
+                        # Sort attributes by display order
+                        highlighted_attrs.sort(key=lambda x: x['display_order'])
+                        regular_attrs.sort(key=lambda x: x['display_order'])
+                        
+                        # Add to page data source
+                        page_ds_data = {
+                            'datasource': page_ds.datasource,
+                            'title': page_ds.title_override or page_ds.datasource.name,
+                            'description': page_ds.description_override or page_ds.datasource.description,
+                            'highlighted_attributes': highlighted_attrs,
+                            'regular_attributes': regular_attrs
+                        }
+                        
+                        page_datasources.append(page_ds_data)
+                
+                # Only add page if it has data sources with data
+                if page_datasources:
+                    page_data = {
+                        'page': page,
+                        'datasources': page_datasources
+                    }
+                    profile_pages.append(page_data)
+            
+            context['profile_pages'] = profile_pages
+            context['has_pages'] = True
+        else:
+            # Fall back to old organization
+            context['has_pages'] = False
         
         return context
 

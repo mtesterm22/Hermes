@@ -1,0 +1,240 @@
+{# templates/users/pages/unassigned.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - Unassigned Data Sources{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Unassigned Data Sources
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+            Data sources not yet assigned to any profile page
+        </p>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'users:page_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Pages
+        </a>
+        {% if datasources %}
+        <button type="button" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" onclick="showAssignAllModal()">
+            Assign All to Page
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Data Sources Without a Profile Page
+        </h3>
+        <p class="mt-1 text-sm text-gray-500">
+            Assign these data sources to a page to make them visible in user profiles
+        </p>
+    </div>
+    <div class="border-t border-gray-200">
+        {% if datasources %}
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Sync
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for datasource in datasources %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">{{ datasource.name }}</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ datasource.get_type_display }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if datasource.status == 'active' %}bg-green-100 text-green-800
+                            {% elif datasource.status == 'error' %}bg-red-100 text-red-800
+                            {% elif datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ datasource.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ datasource.last_sync|default:"Never" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button type="button" class="text-blue-600 hover:text-blue-900" onclick="showAssignModal({{ datasource.id }}, '{{ datasource.name|escapejs }}')">
+                                Assign to Page
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="px-6 py-4 text-center">
+            <p class="text-gray-500 text-sm">All data sources have been assigned to profile pages. Great job!</p>
+            <a href="{% url 'users:page_list' %}" class="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Return to Profile Pages
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Assign to Page Modal -->
+<div id="assign-modal" class="fixed z-10 inset-0 overflow-y-auto hidden">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Assign Data Source to Page
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500" id="datasource-name-display">
+                                Select a page to add this data source to
+                            </p>
+                            <form method="post" action="" id="assign-form" class="mt-4">
+                                {% csrf_token %}
+                                <input type="hidden" name="datasource_id" id="datasource-id-input">
+                                <div>
+                                    <label for="page_slug" class="block text-sm font-medium text-gray-700">
+                                        Profile Page
+                                    </label>
+                                    <select id="page_slug" name="page_slug" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        {% for page in pages %}
+                                        <option value="{{ page.slug }}">{{ page.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm" onclick="document.getElementById('assign-form').submit()">
+                    Assign
+                </button>
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onclick="hideAssignModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign All Modal -->
+<div id="assign-all-modal" class="fixed z-10 inset-0 overflow-y-auto hidden">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                            Assign All Data Sources
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                You are about to assign all {{ datasources|length }} unassigned data sources to a single page. Are you sure?
+                            </p>
+                            <form method="post" action="{% url 'users:page_add_all_unassigned' %}" id="assign-all-form" class="mt-4">
+                                {% csrf_token %}
+                                <div>
+                                    <label for="page_slug_all" class="block text-sm font-medium text-gray-700">
+                                        Profile Page
+                                    </label>
+                                    <select id="page_slug_all" name="page_slug" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        {% for page in pages %}
+                                        <option value="{{ page.slug }}">{{ page.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm" onclick="document.getElementById('assign-all-form').submit()">
+                    Assign All
+                </button>
+                <button type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm" onclick="hideAssignAllModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showAssignModal(datasourceId, datasourceName) {
+        document.getElementById('datasource-id-input').value = datasourceId;
+        document.getElementById('datasource-name-display').textContent = `Assign "${datasourceName}" to a profile page`;
+        
+        // Set the form action to the correct URL
+        const form = document.getElementById('assign-form');
+        const pageSlug = document.getElementById('page_slug').value;
+        form.action = `/users/pages/${pageSlug}/add-datasource/`;
+        
+        document.getElementById('assign-modal').classList.remove('hidden');
+    }
+    
+    function hideAssignModal() {
+        document.getElementById('assign-modal').classList.add('hidden');
+    }
+    
+    function showAssignAllModal() {
+        document.getElementById('assign-all-modal').classList.remove('hidden');
+    }
+    
+    function hideAssignAllModal() {
+        document.getElementById('assign-all-modal').classList.add('hidden');
+    }
+    
+    // Update the form action when the page selection changes
+    document.getElementById('page_slug').addEventListener('change', function(e) {
+        const form = document.getElementById('assign-form');
+        form.action = `/users/pages/${e.target.value}/add-datasource/`;
+    });
+</script>
+{% endblock %}
