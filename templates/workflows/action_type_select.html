@@ -58,6 +58,21 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Iterator Action -->
+                <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">
+                    <div class="px-4 py-5 sm:px-6 bg-amber-50">
+                        <h3 class="text-lg font-medium text-amber-800">Iterator</h3>
+                    </div>
+                    <div class="px-4 py-5 sm:p-6">
+                        <p class="text-sm text-gray-500 mb-4">
+                            Process collections of items one by one. Ideal for working with lists of users, records, or other items that need individual processing.
+                        </p>
+                        <a href="{% url 'workflows:iterator_action_create' %}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-amber-700 bg-amber-100 hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500">
+                            Create Action
+                        </a>
+                    </div>
+                </div>
                 
                 <!-- Profile Check Action -->
                 <div class="bg-white overflow-hidden shadow rounded-lg divide-y divide-gray-200">

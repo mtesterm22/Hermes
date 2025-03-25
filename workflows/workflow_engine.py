@@ -8,6 +8,7 @@ and appropriate error handling.
 import logging
 import time
 import json
+import re
 from typing import Dict, Any, Optional, List, Tuple
 import traceback
 
@@ -159,6 +160,9 @@ class WorkflowEngine:
                 self.workflow_execution,
                 self.execution_context['parameters']
             )
+            
+            # Update execution context with action results
+            self._update_execution_context(action_execution)
             
             # Store result in execution context
             result_key = f"action_{workflow_action.action.id}"
@@ -333,6 +337,9 @@ class WorkflowEngine:
                 self.execution_context['parameters']
             )
             
+            # Update execution context with the results
+            self._update_execution_context(action_execution)
+            
             # Store result in execution context
             result_key = f"action_{action.id}"
             self.execution_context['results'][result_key] = result
@@ -486,6 +493,38 @@ class WorkflowEngine:
         except Exception as e:
             logger.error(f"Error evaluating condition '{condition}': {str(e)}")
             return False
+    
+    def _update_execution_context(self, action_execution):
+        """
+        Update the execution context with output from an action execution.
+        
+        This merges any context variables created by the action into the
+        workflow execution context, making them available to subsequent actions.
+        
+        Args:
+            action_execution: ActionExecution that was just completed
+        """
+        # Skip if no output data
+        if not action_execution.output_data:
+            return
+            
+        # Check if this is an iterator action
+        workflow_action = action_execution.workflow_action
+        if workflow_action.action.action_type == 'iterator':
+            # Iterator actions already update the workflow execution parameters directly
+            # We just need to ensure the updated parameters are in our execution context
+            if self.workflow_execution.parameters:
+                self.execution_context['parameters'].update(self.workflow_execution.parameters)
+        
+        # Store result in execution context under a key specific to this action
+        action_id = workflow_action.action.id
+        result_key = f"action_{action_id}"
+        self.execution_context['results'][result_key] = action_execution.output_data
+        
+        # Also store by the action's name for easier reference in expressions
+        action_name = workflow_action.action.name
+        safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', action_name)
+        self.execution_context['results'][safe_name] = action_execution.output_data
 
 
 def execute_workflow(workflow_id: int, parameters: Optional[Dict[str, Any]] = None, user=None) -> WorkflowExecution:

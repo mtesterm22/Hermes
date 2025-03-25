@@ -25,7 +25,8 @@ from .forms import (
     ActionTypeForm, 
     DatabaseQueryActionForm,
     FileCreateActionForm,
-    ProfileCheckActionForm  
+    ProfileCheckActionForm,
+    IteratorActionForm  
 )
 
 class ActionTypeSelectView(LoginRequiredMixin, TemplateView):
@@ -412,3 +413,55 @@ class ProfileCheckActionUpdateView(LoginRequiredMixin, UpdateView):
         form.instance.modified_by = self.request.user
         messages.success(self.request, _('Profile Check action updated successfully.'))
         return super().form_valid(form)
+
+class IteratorActionCreateView(LoginRequiredMixin, CreateView):
+    """
+    View for creating a new Iterator action.
+    """
+    model = Action
+    form_class = IteratorActionForm
+    template_name = 'workflows/iterator_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Iterator action created successfully.'))
+        return super().form_valid(form)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # If we have a workflow_pk, pass it to the form
+        workflow_pk = self.request.GET.get('workflow_pk')
+        if workflow_pk:
+            kwargs['workflow_pk'] = workflow_pk
+        return kwargs
+
+class IteratorActionUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    View for updating an Iterator action.
+    """
+    model = Action
+    form_class = IteratorActionForm
+    template_name = 'workflows/iterator_action_form.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('workflows:action_detail', kwargs={'pk': self.object.pk})
+    
+    def form_valid(self, form):
+        form.instance.modified_by = self.request.user
+        messages.success(self.request, _('Iterator action updated successfully.'))
+        return super().form_valid(form)
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # Try to get workflow from action's relationships
+        try:
+            workflow = self.object.workflow_actions.first().workflow
+            if workflow:
+                kwargs['workflow_pk'] = workflow.pk
+        except (AttributeError, IndexError):
+            pass
+        return kwargs

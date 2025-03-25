@@ -1,0 +1,276 @@
+{# templates/workflows/iterator_action_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Iterator Action{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Iterator Action
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'workflows:actions' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Actions
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Define general information about this action.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Is Active field -->
+                        <div class="sm:col-span-2">
+                            <div class="flex items-start pt-5">
+                                <div class="flex items-center h-5">
+                                    {{ form.is_active }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700">Active</label>
+                                    <p class="text-gray-500">Enable or disable this action.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Iterator Configuration</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure the collection to iterate over.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Collection Source -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.collection_source.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.collection_source.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.collection_source }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.collection_source.help_text }}
+                            </p>
+                            {% if form.collection_source.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.collection_source.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Source Action (for previous_action source) -->
+                        <div class="sm:col-span-3 previous-action-fields">
+                            <label for="{{ form.source_action_id.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.source_action_id.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.source_action_id }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.source_action_id.help_text }}
+                            </p>
+                            {% if form.source_action_id.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.source_action_id.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Collection Key -->
+                        <div class="sm:col-span-3 key-field">
+                            <label for="{{ form.collection_key.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.collection_key.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.collection_key }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.collection_key.help_text }}
+                            </p>
+                            {% if form.collection_key.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.collection_key.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Custom Collection -->
+                        <div class="sm:col-span-6 custom-collection-field" style="display: none;">
+                            <label for="{{ form.custom_collection.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.custom_collection.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.custom_collection }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.custom_collection.help_text }}
+                            </p>
+                            {% if form.custom_collection.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.custom_collection.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Variable Configuration</h3>
+                        <p class="mt-1 text-sm text-gray-500">Configure the variables that will be created for each iteration.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Item Variable Name -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.variable_name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.variable_name.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.variable_name }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.variable_name.help_text }}
+                            </p>
+                            {% if form.variable_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.variable_name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Index Variable Name -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.index_variable.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.index_variable.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.index_variable }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.index_variable.help_text }}
+                            </p>
+                            {% if form.index_variable.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.index_variable.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Max Iterations -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.max_iterations.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ form.max_iterations.label }}
+                            </label>
+                            <div class="mt-1">
+                                {{ form.max_iterations }}
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">
+                                {{ form.max_iterations.help_text }}
+                            </p>
+                            {% if form.max_iterations.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.max_iterations.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'workflows:actions' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const collectionSourceSelect = document.getElementById('{{ form.collection_source.id_for_label }}');
+        const customCollectionField = document.querySelector('.custom-collection-field');
+        const previousActionFields = document.querySelector('.previous-action-fields');
+        const keyField = document.querySelector('.key-field');
+        
+        // Function to toggle fields based on collection source
+        function toggleFields() {
+            const selectedSource = collectionSourceSelect.value;
+            
+            // Hide all conditionally displayed fields first
+            customCollectionField.style.display = 'none';
+            
+            // Show fields based on selected source
+            if (selectedSource === 'custom') {
+                customCollectionField.style.display = 'block';
+                previousActionFields.style.display = 'none';
+            } else if (selectedSource === 'previous_action') {
+                previousActionFields.style.display = 'block';
+                keyField.style.display = 'block';
+            } else if (selectedSource === 'parameter') {
+                previousActionFields.style.display = 'none';
+                keyField.style.display = 'block';
+            }
+        }
+        
+        // Add event listener for source select change
+        collectionSourceSelect.addEventListener('change', toggleFields);
+        
+        // Set initial field visibility
+        toggleFields();
+    });
+</script>
+{% endblock %}

@@ -2,6 +2,8 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+import json
+
 from datasources.models import DataSource
 from workflows.models import Action, Workflow, WorkflowAction, Schedule
 from datasources.connection_models import DatabaseConnection
@@ -926,6 +928,198 @@ class ProfileCheckActionForm(forms.ModelForm):
         datasource = self.cleaned_data.get('datasource')
         if datasource:
             params['datasource_id'] = datasource.id
+        
+        # Save parameters to the action
+        action.parameters = params
+        
+        if commit:
+            action.save()
+            
+        return action
+
+class IteratorActionForm(forms.ModelForm):
+    """
+    Form for the Iterator action.
+    """
+    
+    # Collection source options
+    COLLECTION_SOURCE_CHOICES = [
+        ('previous_action', _('Previous Action Result')),
+        ('parameter', _('Workflow Parameter')),
+        ('custom', _('Custom Collection')),
+    ]
+    
+    collection_source = forms.ChoiceField(
+        choices=COLLECTION_SOURCE_CHOICES,
+        initial='previous_action',
+        required=True,
+        label=_('Collection Source'),
+        help_text=_('Where to get the collection to iterate over'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Source action selection (shown when collection_source = 'previous_action')
+    source_action_id = forms.IntegerField(
+        required=False,
+        label=_('Source Action'),
+        help_text=_('Select a specific action to get data from (leave blank for most recent)'),
+        widget=forms.Select(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Collection key (field to use from result)
+    collection_key = forms.CharField(
+        required=False,
+        initial='result',
+        label=_('Collection Key'),
+        help_text=_('Key to extract the collection from the source (default: "result")'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Custom collection (shown when collection_source = 'custom')
+    custom_collection = forms.CharField(
+        required=False,
+        label=_('Custom Collection'),
+        help_text=_('Enter a JSON array of items to iterate over'),
+        widget=forms.Textarea(attrs={
+            'rows': 5,
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md font-mono'
+        })
+    )
+    
+    # Variable name to use for the current item
+    variable_name = forms.CharField(
+        required=True,
+        initial='current_item',
+        label=_('Item Variable Name'),
+        help_text=_('Name of the variable to store the current item (will be available to subsequent actions)'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Variable name for the current index
+    index_variable = forms.CharField(
+        required=True,
+        initial='index',
+        label=_('Index Variable Name'),
+        help_text=_('Name of the variable to store the current index (will be available to subsequent actions)'),
+        widget=forms.TextInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    # Maximum number of iterations
+    max_iterations = forms.IntegerField(
+        required=False,
+        initial=0,
+        min_value=0,
+        label=_('Maximum Iterations'),
+        help_text=_('Maximum number of items to process (0 = no limit)'),
+        widget=forms.NumberInput(attrs={
+            'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+        })
+    )
+    
+    class Meta:
+        model = Action
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'description': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded'
+            }),
+        }
+    
+    def clean_custom_collection(self):
+        """Validate and parse the custom collection JSON."""
+        custom_collection = self.cleaned_data.get('custom_collection')
+        collection_source = self.cleaned_data.get('collection_source')
+        
+        if collection_source == 'custom' and custom_collection:
+            try:
+                return json.loads(custom_collection)
+            except json.JSONDecodeError:
+                raise forms.ValidationError(_('Invalid JSON format. Please check your syntax.'))
+        
+        return custom_collection if isinstance(custom_collection, list) else []
+    
+    def __init__(self, *args, **kwargs):
+        workflow_pk = kwargs.pop('workflow_pk', None)
+        super().__init__(*args, **kwargs)
+        
+        # Populate source action dropdown if workflow_pk is provided
+        if workflow_pk:
+            try:
+                workflow = Workflow.objects.get(pk=workflow_pk)
+                actions = Action.objects.filter(workflow_actions__workflow=workflow)
+                self.fields['source_action_id'].widget.choices = [(a.id, a.name) for a in actions]
+            except Workflow.DoesNotExist:
+                self.fields['source_action_id'].widget.choices = []
+        
+        # If editing an existing action, populate the form with existing values
+        if self.instance and self.instance.pk and self.instance.parameters:
+            params = self.instance.parameters
+            
+            # Set collection source fields
+            if 'collection_source' in params:
+                self.fields['collection_source'].initial = params['collection_source']
+            
+            if 'source_action_id' in params:
+                self.fields['source_action_id'].initial = params['source_action_id']
+            
+            if 'collection_key' in params:
+                self.fields['collection_key'].initial = params['collection_key']
+            
+            if 'custom_collection' in params:
+                if isinstance(params['custom_collection'], list):
+                    self.fields['custom_collection'].initial = json.dumps(params['custom_collection'], indent=2)
+                else:
+                    self.fields['custom_collection'].initial = params['custom_collection']
+            
+            if 'variable_name' in params:
+                self.fields['variable_name'].initial = params['variable_name']
+            
+            if 'index_variable' in params:
+                self.fields['index_variable'].initial = params['index_variable']
+            
+            if 'max_iterations' in params:
+                self.fields['max_iterations'].initial = params['max_iterations']
+    
+    def save(self, commit=True):
+        action = super().save(commit=False)
+        
+        # Set the action type
+        action.action_type = 'iterator'
+        
+        # Prepare parameters
+        params = {
+            'collection_source': self.cleaned_data.get('collection_source'),
+            'collection_key': self.cleaned_data.get('collection_key', 'result'),
+            'variable_name': self.cleaned_data.get('variable_name', 'current_item'),
+            'index_variable': self.cleaned_data.get('index_variable', 'index'),
+            'max_iterations': self.cleaned_data.get('max_iterations', 0)
+        }
+        
+        # Add source_action_id if provided
+        source_action_id = self.cleaned_data.get('source_action_id')
+        if source_action_id:
+            params['source_action_id'] = source_action_id
+        
+        # Add custom_collection if using custom source
+        if params['collection_source'] == 'custom':
+            params['custom_collection'] = self.cleaned_data.get('custom_collection', [])
         
         # Save parameters to the action
         action.parameters = params

@@ -7,7 +7,9 @@ from .action_views import (
     FileCreateActionCreateView, 
     FileCreateActionUpdateView,
     ProfileCheckActionCreateView,
-    ProfileCheckActionUpdateView
+    ProfileCheckActionUpdateView,
+    IteratorActionCreateView,
+    IteratorActionUpdateView
 )
 
 app_name = 'workflows'
@@ -45,6 +47,8 @@ urlpatterns = [
     path('actions/<int:pk>/update/file-create/', action_views.FileCreateActionUpdateView.as_view(), name='file_create_action_update'),
     path('actions/create/profile-check/', action_views.ProfileCheckActionCreateView.as_view(), name='profile_check_action_create'),
     path('actions/<int:pk>/update/profile-check/', action_views.ProfileCheckActionUpdateView.as_view(), name='profile_check_action_update'),
+    path('actions/create/iterator/', action_views.IteratorActionCreateView.as_view(), name='iterator_action_create'),
+    path('actions/<int:pk>/update/iterator/', action_views.IteratorActionUpdateView.as_view(), name='iterator_action_update'),
     
     # Generic Actions
     path('actions/create/', views.ActionCreateView.as_view(), name='action_create'),
