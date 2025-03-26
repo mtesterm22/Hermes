@@ -142,23 +142,24 @@
                     <p class="text-sm text-gray-500">No attributes configured yet.</p>
                     {% endif %}
                     
-                    <!-- Unconfigured attributes -->
                     {% if page_ds.unconfigured_attrs %}
-                    <div class="mt-4">
+                    <div class="mt-4 unconfigured-attrs-section">
                         <h6 class="text-xs font-medium text-gray-700 mb-1">Available attributes to add:</h6>
                         <div class="text-xs text-gray-500">
                             {% for category, attrs in page_ds.unconfigured_attrs.items %}
-                            <div class="mb-2">
+                            <div class="mb-2 attribute-category">
                                 <strong>{{ category }}:</strong>
-                                {% for attr in attrs %}
-                                <form method="post" action="{% url 'users:page_add_attribute' page.slug page_ds.id %}" class="inline">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="attribute_name" value="{{ attr.attribute_name }}">
-                                    <button type="submit" class="text-blue-600 hover:text-blue-900 hover:underline ml-1">
-                                        {{ attr.get_formatted_display_name }}{% if not forloop.last %},{% endif %}
-                                    </button>
-                                </form>
-                                {% endfor %}
+                                <div class="attribute-list">
+                                    {% for attr in attrs %}
+                                    <form method="post" action="{% url 'users:page_add_attribute' page.slug page_ds.id %}" class="inline attribute-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="attribute_name" value="{{ attr.attribute_name }}">
+                                        <button type="submit" class="text-blue-600 hover:text-blue-900 hover:underline ml-1">
+                                            {{ attr.get_formatted_display_name }}{% if not forloop.last %},{% endif %}
+                                        </button>
+                                    </form>
+                                    {% endfor %}
+                                </div>
                             </div>
                             {% endfor %}
                         </div>
@@ -362,46 +363,74 @@
     </div>
 </div>
 {% endblock %}
+{# Add this at the end of templates/users/pages/detail.html, replacing the existing script block #}
 
 {% block extra_js %}
 <script>
-    // Initialize Sortable for data sources
-    const datasourcesList = document.getElementById('datasources-list');
-    if (datasourcesList) {
-        new Sortable(datasourcesList, {
-            animation: 150,
-            handle: '.cursor-move',
-            onEnd: function (evt) {
-                // Get the new order of data sources
-                const items = Array.from(datasourcesList.querySelectorAll('li')).map(item => item.dataset.id);
-                // Send the new order to the server
-                updateDatasourceOrder(items);
-            }
-        });
-    }
+    console.log("Script block initializing");
     
-    // Initialize Sortable for attribute lists
-    document.querySelectorAll('.attributes-list').forEach(list => {
-        new Sortable(list, {
-            animation: 150,
-            handle: '.cursor-move',
-            onEnd: function (evt) {
-                // Get the new order of attributes
-                const items = Array.from(list.querySelectorAll('li')).map(item => item.dataset.id);
-                const dataSourceId = list.dataset.dsId;
-                // Send the new order to the server
-                updateAttributeOrder(dataSourceId, items);
-            }
-        });
+    // Wait for document to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM fully loaded - initializing Sortable");
+        initializeSortable();
     });
+    
+    // Initialize all Sortable instances
+    function initializeSortable() {
+        try {
+            // Initialize for data sources
+            const datasourcesList = document.getElementById('datasources-list');
+            if (datasourcesList) {
+                console.log("Initializing Sortable for datasources list");
+                new Sortable(datasourcesList, {
+                    animation: 150,
+                    handle: '.cursor-move',
+                    onEnd: function(evt) {
+                        console.log("Datasource drag ended");
+                        const items = Array.from(datasourcesList.querySelectorAll('li')).map(item => item.dataset.id);
+                        updateDatasourceOrder(items);
+                    }
+                });
+            } else {
+                console.warn("Datasources list element not found");
+            }
+            
+            // Initialize for all attribute lists
+            const attributeLists = document.querySelectorAll('.attributes-list');
+            console.log(`Found ${attributeLists.length} attribute lists`);
+            
+            attributeLists.forEach((list, index) => {
+                try {
+                    console.log(`Initializing Sortable for attribute list ${index} with data-ds-id=${list.dataset.dsId}`);
+                    new Sortable(list, {
+                        animation: 150,
+                        handle: '.cursor-move',
+                        onEnd: function(evt) {
+                            console.log(`Attribute drag ended on list ${index}`);
+                            const items = Array.from(list.querySelectorAll('li')).map(item => item.dataset.id);
+                            const dataSourceId = list.dataset.dsId;
+                            updateAttributeOrder(dataSourceId, items);
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Error initializing Sortable for attribute list ${index}:`, error);
+                }
+            });
+        } catch (error) {
+            console.error("Error in initializeSortable:", error);
+        }
+    }
     
     // Function to update data source order
     function updateDatasourceOrder(items) {
+        console.log("Updating datasource order:", items);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
         fetch('{% url "users:page_reorder_datasources" page.slug %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token }}'
+                'X-CSRFToken': csrfToken
             },
             body: new URLSearchParams({
                 'ids[]': items
@@ -416,34 +445,37 @@
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('Error in updateDatasourceOrder:', error);
         });
     }
     
     // Function to update attribute order
     function updateAttributeOrder(dataSourceId, items) {
-    fetch(`/users/pages/{{ page.slug }}/datasource/${dataSourceId}/reorder-attributes/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: new URLSearchParams({
-            'ids[]': items
+        console.log(`Updating attribute order for datasource ${dataSourceId}:`, items);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/users/pages/{{ page.slug }}/datasource/${dataSourceId}/reorder-attributes/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: new URLSearchParams({
+                'ids[]': items
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            console.log('Attributes reordered successfully');
-        } else {
-            console.error('Error reordering attributes:', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
-}
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Attributes reordered successfully');
+            } else {
+                console.error('Error reordering attributes:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error in updateAttributeOrder:', error);
+        });
+    }
     
     // Add Data Source Modal functions
     function showAddDataSourceModal() {
@@ -454,52 +486,153 @@
         document.getElementById('add-datasource-modal').classList.add('hidden');
     }
     
-    // Add Attribute Modal functions
+    // Add Attribute Modal function - completely rewritten
     function showAddAttributeModal(dataSourceId) {
+        console.log(`showAddAttributeModal called with dataSourceId: ${dataSourceId}`);
         const modal = document.getElementById('add-attribute-modal');
         const form = document.getElementById('add-attribute-form');
         const select = document.getElementById('attribute_name');
         
         // Clear existing options
-        select.innerHTML = '';
+        while (select.firstChild) {
+            select.removeChild(select.firstChild);
+        }
         
-        // Set the form action correctly with both parameters
+        // Set the form action correctly
         form.action = `/users/pages/{{ page.slug }}/datasource/${dataSourceId}/add-attribute/`;
         
         // Find the data source in the page
-        const dataSource = Array.from(document.querySelectorAll('#datasources-list li')).find(li => li.dataset.id == dataSourceId);
-        if (dataSource) {
-            // Find all unconfigured attributes
-            const attributeDivs = dataSource.querySelectorAll('.unconfigured_attrs div');
-            if (attributeDivs && attributeDivs.length > 0) {
-                attributeDivs.forEach(div => {
-                    const category = div.querySelector('strong').textContent.replace(':', '');
-                    const links = div.querySelectorAll('button');
-                    
-                    // Create an optgroup for this category
-                    const optgroup = document.createElement('optgroup');
-                    optgroup.label = category;
-                    
-                    // Add options for each attribute
-                    links.forEach(link => {
-                        const option = document.createElement('option');
-                        option.value = link.closest('form').querySelector('input[name="attribute_name"]').value;
-                        option.textContent = link.textContent.replace(',', '').trim();
-                        optgroup.appendChild(option);
-                    });
-                    
-                    select.appendChild(optgroup);
-                });
-            } else {
-                // No unconfigured attributes found
-                const option = document.createElement('option');
-                option.disabled = true;
-                option.textContent = 'No available attributes';
-                select.appendChild(option);
+        const dataSourceItem = document.querySelector(`#datasources-list li[data-id="${dataSourceId}"]`);
+        console.log("Found datasource item:", dataSourceItem);
+        
+        if (!dataSourceItem) {
+            // Display error in select
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.selected = true;
+            option.textContent = 'Error finding data source';
+            select.appendChild(option);
+            modal.classList.remove('hidden');
+            return;
+        }
+        
+        // Look for various selectors to find unconfigured attributes section
+        const selectors = [
+            '.unconfigured_attrs',
+            '.mt-4 .text-xs.text-gray-500', 
+            '.mt-4'
+        ];
+        
+        let unconfiguredSection = null;
+        for (const selector of selectors) {
+            const section = dataSourceItem.querySelector(selector);
+            if (section) {
+                unconfiguredSection = section;
+                console.log(`Found unconfigured section using selector: ${selector}`);
+                break;
             }
         }
         
+        if (!unconfiguredSection) {
+            console.warn("No unconfigured attributes section found");
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.selected = true;
+            option.textContent = 'No available attributes';
+            select.appendChild(option);
+            modal.classList.remove('hidden');
+            return;
+        }
+        
+        // Find all forms in the unconfigured section - each form represents an attribute
+        const attributeForms = unconfiguredSection.querySelectorAll('form');
+        console.log(`Found ${attributeForms.length} attribute forms`);
+        
+        if (attributeForms.length === 0) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.selected = true;
+            option.textContent = 'No available attributes';
+            select.appendChild(option);
+            modal.classList.remove('hidden');
+            return;
+        }
+        
+        // Group attributes by category if possible
+        const attributesByCategory = {};
+        
+        attributeForms.forEach(form => {
+            const inputField = form.querySelector('input[name="attribute_name"]');
+            const button = form.querySelector('button');
+            
+            if (!inputField || !button) {
+                console.warn("Form missing input or button:", form);
+                return;
+            }
+            
+            const attributeName = inputField.value;
+            const displayText = button.textContent.replace(',', '').trim();
+            
+            // Try to determine the category - look for parent elements with category info
+            let categoryNode = form.parentElement;
+            let category = 'General';
+            
+            while (categoryNode && categoryNode !== unconfiguredSection) {
+                const strongElement = categoryNode.querySelector('strong');
+                if (strongElement) {
+                    category = strongElement.textContent.replace(':', '').trim();
+                    break;
+                }
+                categoryNode = categoryNode.parentElement;
+            }
+            
+            if (!attributesByCategory[category]) {
+                attributesByCategory[category] = [];
+            }
+            
+            attributesByCategory[category].push({
+                name: attributeName,
+                display: displayText
+            });
+        });
+        
+        console.log("Attributes by category:", attributesByCategory);
+        
+        // Create the select options
+        const categories = Object.keys(attributesByCategory);
+        
+        if (categories.length === 0) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.selected = true;
+            option.textContent = 'No available attributes';
+            select.appendChild(option);
+            modal.classList.remove('hidden');
+            return;
+        }
+        
+        // Add an option for each attribute, grouped by category
+        categories.forEach(category => {
+            const attributes = attributesByCategory[category];
+            
+            // Create optgroup for this category
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = category;
+            
+            // Add options for each attribute
+            attributes.forEach(attr => {
+                const option = document.createElement('option');
+                option.value = attr.name;
+                option.textContent = attr.display;
+                optgroup.appendChild(option);
+            });
+            
+            select.appendChild(optgroup);
+        });
+        
+        // Show the modal
         modal.classList.remove('hidden');
+        console.log(`Modal shown with ${select.options.length} options available`);
     }
     
     function hideAddAttributeModal() {

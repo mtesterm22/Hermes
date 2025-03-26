@@ -37,6 +37,103 @@ class ProfilePageListView(LoginRequiredMixin, ListView):
         
         return context
 
+# users/page_views.py
+# Fix for unconfigured attributes loading and attribute add handling
+
+class PageAttributeReorderView(LoginRequiredMixin, View):
+    """
+    AJAX view for reordering attributes on a page data source
+    """
+    def post(self, request, slug, ds_id):
+        page = get_object_or_404(ProfilePage, slug=slug)
+        page_ds = get_object_or_404(PageDataSource, id=ds_id, page=page)
+        
+        try:
+            # Get the new ordering data
+            order_data = request.POST.getlist('ids[]', [])
+            
+            if not order_data:
+                return JsonResponse({'status': 'error', 'message': 'No ordering data provided'})
+            
+            # Update the display order for each attribute
+            with transaction.atomic():
+                for i, attr_id in enumerate(order_data):
+                    try:
+                        page_attr = PageAttribute.objects.get(page_datasource=page_ds, id=attr_id)
+                        page_attr.display_order = i * 10
+                        page_attr.save(update_fields=['display_order'])
+                    except PageAttribute.DoesNotExist:
+                        pass
+            
+            return JsonResponse({'status': 'success'})
+            
+        except Exception as e:
+            import traceback
+            return JsonResponse({
+                'status': 'error', 
+                'message': str(e),
+                'traceback': traceback.format_exc()
+            })
+
+
+class PageAttributeAddView(LoginRequiredMixin, View):
+    """
+    View for adding an attribute to a page data source
+    """
+    def post(self, request, slug, ds_id):
+        page = get_object_or_404(ProfilePage, slug=slug)
+        
+        try:
+            # Find the page data source
+            page_ds = get_object_or_404(PageDataSource, id=ds_id, page=page)
+            attribute_name = request.POST.get('attribute_name')
+            
+            if not attribute_name:
+                messages.error(request, _('No attribute selected.'))
+                return redirect('users:page_detail', slug=slug)
+            
+            # Check if attribute already exists
+            if PageAttribute.objects.filter(page_datasource=page_ds, attribute_name=attribute_name).exists():
+                messages.warning(request, _('This attribute is already on this page.'))
+                return redirect('users:page_detail', slug=slug)
+            
+            # Get display configuration if it exists
+            try:
+                config = AttributeDisplayConfig.objects.get(
+                    datasource=page_ds.datasource,
+                    attribute_name=attribute_name
+                )
+                is_highlighted = config.is_primary
+                display_name = config.display_name if config.display_name else None
+            except AttributeDisplayConfig.DoesNotExist:
+                is_highlighted = False
+                display_name = None
+            
+            # Get highest display order for this page data source's attributes
+            highest_order = PageAttribute.objects.filter(page_datasource=page_ds).order_by('-display_order').values_list('display_order', flat=True).first()
+            if highest_order is None:
+                highest_order = 0
+            
+            # Create the page attribute
+            page_attr = PageAttribute.objects.create(
+                page_datasource=page_ds,
+                attribute_name=attribute_name,
+                display_name_override=display_name,
+                display_order=highest_order + 10,
+                is_highlighted=is_highlighted
+            )
+            
+            messages.success(request, _(f'Added attribute {attribute_name} to the page.'))
+            
+        except Exception as e:
+            import traceback
+            print(f"Error adding attribute: {str(e)}")
+            print(traceback.format_exc())
+            messages.error(request, _(f'Error adding attribute: {str(e)}'))
+        
+        return redirect('users:page_detail', slug=slug)
+
+
 class ProfilePageDetailView(LoginRequiredMixin, DetailView):
     """
     Detail view for a profile page
@@ -55,11 +152,12 @@ class ProfilePageDetailView(LoginRequiredMixin, DetailView):
         
         # For each page datasource, get its attributes
         for page_ds in page_datasources:
-            page_ds.page_attributes = PageAttribute.objects.filter(
+            # Get page attributes (configured ones)
+            page_ds.page_attributes = list(PageAttribute.objects.filter(
                 page_datasource=page_ds
-            ).order_by('display_order')
+            ).order_by('display_order'))
             
-            # Get list of attribute names not explicitly configured for this page
+            # Get list of attribute names already configured for this page
             configured_attrs = set(attr.attribute_name for attr in page_ds.page_attributes)
             
             # Get all display configs for this datasource
@@ -71,9 +169,10 @@ class ProfilePageDetailView(LoginRequiredMixin, DetailView):
             # Group by category
             unconfigured_attrs = {}
             for config in all_configs:
-                if config.category not in unconfigured_attrs:
-                    unconfigured_attrs[config.category] = []
-                unconfigured_attrs[config.category].append(config)
+                category = config.category if config.category else 'General'
+                if category not in unconfigured_attrs:
+                    unconfigured_attrs[category] = []
+                unconfigured_attrs[category].append(config)
             
             page_ds.unconfigured_attrs = unconfigured_attrs
         
@@ -263,58 +362,6 @@ class PageDataSourceRemoveView(LoginRequiredMixin, View):
         
         return redirect('users:page_detail', slug=slug)
 
-# Add this to users/page_views.py
-
-class PageAttributeAddView(LoginRequiredMixin, View):
-    """
-    View for adding an attribute to a page data source
-    """
-    def post(self, request, slug, ds_id):
-        page = get_object_or_404(ProfilePage, slug=slug)
-        
-        try:
-            # Find the page data source
-            page_ds = get_object_or_404(PageDataSource, id=ds_id, page=page)
-            attribute_name = request.POST.get('attribute_name')
-            
-            if not attribute_name:
-                messages.error(request, _('No attribute selected.'))
-                return redirect('users:page_detail', slug=slug)
-            
-            # Check if attribute already exists
-            if PageAttribute.objects.filter(page_datasource=page_ds, attribute_name=attribute_name).exists():
-                messages.warning(request, _('This attribute is already on this page.'))
-                return redirect('users:page_detail', slug=slug)
-            
-            # Get display configuration if it exists
-            try:
-                config = AttributeDisplayConfig.objects.get(
-                    datasource=page_ds.datasource,
-                    attribute_name=attribute_name
-                )
-                is_highlighted = config.is_primary
-            except AttributeDisplayConfig.DoesNotExist:
-                is_highlighted = False
-            
-            # Get highest display order for this page data source's attributes
-            highest_order = PageAttribute.objects.filter(page_datasource=page_ds).order_by('-display_order').values_list('display_order', flat=True).first()
-            if highest_order is None:
-                highest_order = 0
-            
-            # Create the page attribute
-            PageAttribute.objects.create(
-                page_datasource=page_ds,
-                attribute_name=attribute_name,
-                display_order=highest_order + 10,
-                is_highlighted=is_highlighted
-            )
-            
-            messages.success(request, _(f'Added attribute {attribute_name} to the page.'))
-            
-        except Exception as e:
-            messages.error(request, _(f'Error adding attribute: {str(e)}'))
-        
-        return redirect('users:page_detail', slug=slug)
 
 class PageAttributeRemoveView(LoginRequiredMixin, View):
     """
@@ -367,37 +414,6 @@ class PageDataSourceReorderView(LoginRequiredMixin, View):
             
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)})
-
-class PageAttributeReorderView(LoginRequiredMixin, View):
-    """
-    AJAX view for reordering attributes on a page data source
-    """
-    def post(self, request, slug, ds_id):
-        page = get_object_or_404(ProfilePage, slug=slug)
-        page_ds = get_object_or_404(PageDataSource, id=ds_id, page=page)
-        
-        try:
-            # Get the new ordering data
-            order_data = request.POST.getlist('ids[]', [])
-            
-            if not order_data:
-                return JsonResponse({'status': 'error', 'message': 'No ordering data provided'})
-            
-            # Update the display order for each attribute
-            with transaction.atomic():
-                for i, attr_id in enumerate(order_data):
-                    try:
-                        page_attr = PageAttribute.objects.get(page_datasource=page_ds, id=attr_id)
-                        page_attr.display_order = i * 10
-                        page_attr.save(update_fields=['display_order'])
-                    except PageAttribute.DoesNotExist:
-                        pass
-            
-            return JsonResponse({'status': 'success'})
-            
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
-
 class PageAttributeToggleHighlightView(LoginRequiredMixin, View):
     """
     View for toggling the highlighted status of an attribute

@@ -70,6 +70,8 @@
 {% endblock %}
 
 {% block content %}
+
+
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
     <!-- Main Content Area -->
     <div class="lg:col-span-2">
@@ -99,85 +101,85 @@
                 </div>
                 
                 {% for ds in page_data.datasources %}
-                <!-- Highlighted Attributes for this data source -->
-                {% if ds.highlighted_attributes %}
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-                    <div class="px-4 py-5 sm:px-6">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Highlighted Information</h3>
-                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Key information from {{ ds.title }}</p>
+                    <!-- Highlighted section if there are any highlighted attributes -->
+                    {% if ds.highlighted_attributes %}
+                    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+                        <div class="px-4 py-5 sm:px-6">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">Highlighted Information</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">Key information from {{ ds.title }}</p>
+                        </div>
+                        <div class="border-t border-gray-200">
+                            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 py-5">
+                                {% for attr in ds.highlighted_attributes %}
+                                <div>
+                                    <dt class="text-sm font-medium text-gray-500">{{ attr.display_name }}</dt>
+                                    <dd class="mt-1 text-sm text-gray-900">{{ attr.values.0.attribute_value }}</dd>
+                                </div>
+                                {% endfor %}
+                            </dl>
+                        </div>
                     </div>
-                    <div class="border-t border-gray-200">
-                        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 py-5">
-                            {% for attr in ds.highlighted_attributes %}
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">{{ attr.display_name }}</dt>
-                                <dd class="mt-1 text-sm text-gray-900">{{ attr.values.0.attribute_value }}</dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
+                    {% endif %}
+                    
+                    <!-- Regular attributes section -->
+                    {% if ds.regular_attributes %}
+                    <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+                        <div class="px-4 py-5 sm:px-6">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">{{ ds.title }}</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">{{ ds.description|default:"" }}</p>
+                        </div>
+                        <div class="border-t border-gray-200">
+                            <dl>
+                                {% for attr in ds.regular_attributes %}
+                                <div class="{% cycle 'bg-white' 'bg-gray-50' %} px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                                    <dt class="text-sm font-medium text-gray-500">
+                                        {{ attr.display_name }}
+                                        <a href="{% url 'users:attribute_history' person.id %}?attribute={{ attr.name }}" class="ml-1 text-xs text-blue-500 hover:text-blue-700" title="View history">
+                                            <svg class="inline-block h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </a>
+                                    </dt>
+                                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                        {% if attr.values|length == 1 %}
+                                        <div>
+                                            <span>{{ attr.values.0.attribute_value }}</span>
+                                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {{ attr.values.0.datasource.name }}
+                                            </span>
+                                        </div>
+                                        {% else %}
+                                        <ul class="border border-gray-200 rounded-md divide-y divide-gray-200">
+                                            {% for value in attr.values %}
+                                            <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+                                                <div class="w-0 flex-1 flex items-center">
+                                                    {% if forloop.first %}
+                                                    <span class="ml-2 flex-1 w-0">
+                                                        {{ value.attribute_value }}
+                                                    </span>
+                                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                        Primary
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="ml-2 flex-1 w-0 text-gray-500">
+                                                        {{ value.attribute_value }}
+                                                    </span>
+                                                    {% endif %}
+                                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                        {{ value.datasource.name }}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% endif %}
+                                    </dd>
+                                </div>
+                                {% endfor %}
+                            </dl>
+                        </div>
                     </div>
-                </div>
-                {% endif %}
-                
-                <!-- Regular Attributes for this data source -->
-                {% if ds.regular_attributes %}
-                <div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
-                    <div class="px-4 py-5 sm:px-6">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">{{ ds.title }}</h3>
-                        <p class="mt-1 max-w-2xl text-sm text-gray-500">{{ ds.description|default:"" }}</p>
-                    </div>
-                    <div class="border-t border-gray-200">
-                        <dl>
-                            {% for attr in ds.regular_attributes %}
-                            <div class="{% cycle 'bg-white' 'bg-gray-50' %} px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                <dt class="text-sm font-medium text-gray-500">
-                                    {{ attr.display_name }}
-                                    <a href="{% url 'users:attribute_history' person.id %}?attribute={{ attr.name }}" class="ml-1 text-xs text-blue-500 hover:text-blue-700" title="View history">
-                                        <svg class="inline-block h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                    </a>
-                                </dt>
-                                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                    {% if attr.values|length == 1 %}
-                                    <div>
-                                        <span>{{ attr.values.0.attribute_value }}</span>
-                                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {{ attr.values.0.datasource.name }}
-                                        </span>
-                                    </div>
-                                    {% else %}
-                                    <ul class="border border-gray-200 rounded-md divide-y divide-gray-200">
-                                        {% for value in attr.values %}
-                                        <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
-                                            <div class="w-0 flex-1 flex items-center">
-                                                {% if forloop.first %}
-                                                <span class="ml-2 flex-1 w-0">
-                                                    {{ value.attribute_value }}
-                                                </span>
-                                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    Primary
-                                                </span>
-                                                {% else %}
-                                                <span class="ml-2 flex-1 w-0 text-gray-500">
-                                                    {{ value.attribute_value }}
-                                                </span>
-                                                {% endif %}
-                                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    {{ value.datasource.name }}
-                                                </span>
-                                            </div>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                    {% endif %}
-                                </dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
-                    </div>
-                </div>
-                {% endif %}
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -369,71 +371,71 @@
     </div>
     
     <!-- Data Sources Sidebar -->
-    <div class="lg:col-span-1">
-        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-                <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Data Sources</h3>
-                    <p class="mt-1 max-w-2xl text-sm text-gray-500">Filter by source</p>
-                </div>
-                {% if selected_datasource %}
-                <a href="{% url 'users:person_detail' person.id %}" class="text-sm text-blue-600 hover:text-blue-900">Clear</a>
-                {% endif %}
+<div class="lg:col-span-1">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Data Sources</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Filter by source</p>
             </div>
-            <div class="border-t border-gray-200">
-                {% if datasources %}
-                <ul class="divide-y divide-gray-200">
-                    <li class="px-4 py-4 {% if not selected_datasource %}bg-blue-50{% endif %}">
-                        <a href="{% url 'users:person_detail' person.id %}" class="block hover:text-blue-600">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium {% if not selected_datasource %}text-blue-700{% else %}text-gray-900{% endif %}">
-                                        All Data Sources
-                                    </p>
-                                    <p class="text-sm text-gray-500">
-                                        {{ datasources|length }} sources
-                                    </p>
-                                </div>
+            {% if selected_datasource %}
+            <a href="{% url 'users:person_detail' person.id %}" class="text-sm text-blue-600 hover:text-blue-900">Clear</a>
+            {% endif %}
+        </div>
+        <div class="border-t border-gray-200">
+            {% if datasources %}
+            <ul class="divide-y divide-gray-200">
+                <li class="px-4 py-4 {% if not selected_datasource %}bg-blue-50{% endif %}">
+                    <a href="{% url 'users:person_detail' person.id %}" class="block hover:text-blue-600">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium {% if not selected_datasource %}text-blue-700{% else %}text-gray-900{% endif %}">
+                                    All Data Sources
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {{ datasources|length }} sources
+                                </p>
                             </div>
-                        </a>
-                    </li>
-                    {% for item in datasources %}
-                    <li class="px-4 py-4 {% if selected_datasource.id == item.datasource.id %}bg-blue-50{% endif %}">
-                        <a href="{% url 'users:person_detail' person.id %}?datasource={{ item.datasource.id }}" class="block hover:text-blue-600">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-medium {% if selected_datasource.id == item.datasource.id %}text-blue-700{% else %}text-gray-900{% endif %}">
-                                        {{ item.datasource.name }}
-                                    </p>
-                                    <p class="text-sm text-gray-500">
-                                        {{ item.attribute_count }} attributes
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        Last updated: {{ item.last_updated|date:"M d, Y H:i" }}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                        {% if item.datasource.status == 'active' %}bg-green-100 text-green-800
-                                        {% elif item.datasource.status == 'error' %}bg-red-100 text-red-800
-                                        {% elif item.datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
-                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                        {{ item.datasource.get_status_display }}
-                                    </span>
-                                </div>
+                        </div>
+                    </a>
+                </li>
+                {% for item in datasources %}
+                <li class="px-4 py-4 {% if selected_datasource.id == item.datasource.id %}bg-blue-50{% endif %}">
+                    <a href="{% url 'users:person_detail' person.id %}?datasource={{ item.datasource.id }}" class="block hover:text-blue-600">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium {% if selected_datasource.id == item.datasource.id %}text-blue-700{% else %}text-gray-900{% endif %}">
+                                    {{ item.datasource.name }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {{ item.attribute_count }} attributes
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Last updated: {{ item.last_updated|date:"M d, Y H:i" }}
+                                </p>
                             </div>
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="px-4 py-5 sm:px-6">
-                    <p class="text-sm text-gray-500">No data sources contributing to this profile.</p>
-                </div>
-                {% endif %}
+                            <div>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    {% if item.datasource.status == 'active' %}bg-green-100 text-green-800
+                                    {% elif item.datasource.status == 'error' %}bg-red-100 text-red-800
+                                    {% elif item.datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ item.datasource.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-4 py-5 sm:px-6">
+                <p class="text-sm text-gray-500">No data sources contributing to this profile.</p>
             </div>
+            {% endif %}
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -441,13 +443,17 @@
 <script>
     // Handle page tab switching
     document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM loaded - initializing page tabs");
         const tabs = document.querySelectorAll('.profile-page-tab');
         const contents = document.querySelectorAll('.profile-page-content');
+        
+        console.log(`Found ${tabs.length} tabs and ${contents.length} content sections`);
         
         if (tabs.length > 0 && contents.length > 0) {
             tabs.forEach(tab => {
                 tab.addEventListener('click', function() {
                     const pageId = this.dataset.pageId;
+                    console.log(`Tab clicked for page ID: ${pageId}`);
                     
                     // Deactivate all tabs and hide all content
                     tabs.forEach(t => {
@@ -466,6 +472,9 @@
                     const contentElement = document.querySelector(`.profile-page-content[data-page-id="${pageId}"]`);
                     if (contentElement) {
                         contentElement.classList.remove('hidden');
+                        console.log(`Showing content for page ID: ${pageId}`);
+                    } else {
+                        console.error(`Could not find content for page ID: ${pageId}`);
                     }
                 });
             });
@@ -473,3 +482,4 @@
     });
 </script>
 {% endblock %}
+                    

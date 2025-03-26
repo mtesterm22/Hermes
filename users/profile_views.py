@@ -1,4 +1,5 @@
 # users/profile_views.py
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView, View
@@ -6,8 +7,11 @@ from django.db.models import Count, Q
 from django.utils.translation import gettext_lazy as _
 
 from .models import Person
-from .profile_integration import AttributeSource, ProfileAttributeChange, DataSource
+from .profile_integration import AttributeSource, ProfileAttributeChange, DataSource, AttributeDisplayConfig
+from .page_models import ProfilePage, PageDataSource, PageAttribute
 from .utils import coalesce_identifiers
+
+logger = logging.getLogger(__name__)
 
 class PersonListView(LoginRequiredMixin, ListView):
     """
@@ -142,8 +146,6 @@ class PersonListView(LoginRequiredMixin, ListView):
         context['total_count'] = Person.objects.count()
         return context
 
-# Update this in users/profile_views.py
-
 class PersonDetailView(LoginRequiredMixin, DetailView):
     """
     Detail view for a single user profile with data source filtering
@@ -154,6 +156,9 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Debug info
+        logger.info(f"Loading profile for person ID: {self.object.id}")
         
         # Get identifiers for this person
         from users.models import get_identifiers
@@ -196,8 +201,9 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         if selected_datasource_id:
             try:
                 selected_datasource = DataSource.objects.get(pk=selected_datasource_id)
+                logger.info(f"Selected datasource: {selected_datasource.name} (ID: {selected_datasource.id})")
             except (DataSource.DoesNotExist, ValueError):
-                pass
+                logger.warning(f"Invalid datasource ID: {selected_datasource_id}")
         
         # Get all datasources for this profile
         datasources = {}
@@ -205,6 +211,9 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
             person=self.object,
             is_current=True
         ).select_related('datasource', 'mapping')
+        
+        # Log what we found
+        logger.info(f"Found {all_sources.count()} attribute sources for person {self.object.id}")
         
         for source in all_sources:
             if source.datasource.id not in datasources:
@@ -227,6 +236,7 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
             reverse=True
         )
         
+        logger.info(f"Prepared {len(datasources_list)} datasources for sidebar")
         context['datasources'] = datasources_list
         context['selected_datasource'] = selected_datasource
         
@@ -270,8 +280,6 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         context['recent_changes'] = recent_changes
         
         # Get display configurations for all data sources
-        from users.profile_integration import AttributeDisplayConfig
-        
         all_configs = {}
         for datasource_id in datasources:
             configs = AttributeDisplayConfig.objects.filter(
@@ -282,6 +290,94 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
             all_configs[datasource_id] = {
                 config.attribute_name: config for config in configs
             }
+        
+        # When a datasource is selected, prepare a filtered view of all attributes
+        if selected_datasource:
+            logger.info(f"Preparing filtered view for datasource: {selected_datasource.name}")
+            
+            # Get all attributes for this person from the selected datasource
+            datasource_attributes = AttributeSource.objects.filter(
+                person=self.object,
+                datasource=selected_datasource,
+                is_current=True
+            ).select_related('datasource', 'mapping')
+            
+            # Group attributes by category if possible
+            categorized_attributes = {}
+            
+            # Try to get display configs for the attributes
+            display_configs = AttributeDisplayConfig.objects.filter(
+                datasource=selected_datasource
+            ).select_related()
+            
+            # Create a mapping of attribute names to their display configs
+            config_map = {config.attribute_name: config for config in display_configs}
+            
+            # Group the attributes by name
+            attr_by_name = {}
+            for attr in datasource_attributes:
+                if attr.attribute_name not in attr_by_name:
+                    attr_by_name[attr.attribute_name] = []
+                attr_by_name[attr.attribute_name].append(attr)
+            
+            # Organize attributes by category
+            for attr_name, attrs in attr_by_name.items():
+                # Get display info from config if available
+                if attr_name in config_map:
+                    config = config_map[attr_name]
+                    category = config.category or "Uncategorized"
+                    display_name = config.get_formatted_display_name()
+                    is_primary = config.is_primary
+                    display_order = config.display_order
+                else:
+                    # Default display info if no config exists
+                    category = "Uncategorized"
+                    display_name = attr_name.replace('_', ' ').title()
+                    is_primary = False
+                    display_order = 999
+                
+                # Sort the attributes by priority
+                sorted_attrs = sorted(attrs, key=lambda x: -x.mapping.priority if x.mapping else 0)
+                
+                # Create attribute display info
+                attr_info = {
+                    'name': attr_name,
+                    'display_name': display_name,
+                    'values': sorted_attrs,
+                    'is_primary': is_primary,
+                    'display_order': display_order
+                }
+                
+                # Add to the category
+                if category not in categorized_attributes:
+                    categorized_attributes[category] = []
+                
+                categorized_attributes[category].append(attr_info)
+            
+            # Sort attributes within each category
+            for category in categorized_attributes:
+                categorized_attributes[category] = sorted(
+                    categorized_attributes[category], 
+                    key=lambda x: (x['display_order'], x['display_name'])
+                )
+            
+            # Sort categories (Identity first, then alphabetically)
+            sorted_categories = {}
+            if 'Identity' in categorized_attributes:
+                sorted_categories['Identity'] = categorized_attributes.pop('Identity')
+            
+            # Add remaining categories in alphabetical order
+            for category in sorted(categorized_attributes.keys()):
+                sorted_categories[category] = categorized_attributes[category]
+            
+            # Add to context
+            context['datasource_view'] = True
+            context['filtered_datasource'] = selected_datasource
+            context['categorized_attributes'] = sorted_categories
+            
+            logger.info(f"Prepared filtered view with {sum(len(attrs) for attrs in sorted_categories.values())} attributes in {len(sorted_categories)} categories")
+        else:
+            context['datasource_view'] = False
         
         # Organize attributes based on configurations
         organized_attributes = {}
@@ -375,35 +471,44 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         )
         
         context['primary_by_source'] = primary_by_source_list
-        
-        return context
 
         # Get profile pages for organization
-        from users.page_models import ProfilePage, PageDataSource, PageAttribute
-
         # Check if profile pages exist
         has_pages = ProfilePage.objects.filter(is_visible=True).exists()
+        logger.info(f"Profile pages exist: {has_pages}")
+        context['has_pages'] = has_pages
 
         if has_pages:
             # Get visible pages
             pages = ProfilePage.objects.filter(is_visible=True).order_by('display_order')
+            logger.info(f"Found {pages.count()} visible pages")
             
             # Organize datasources and attributes by page
             profile_pages = []
             
             for page in pages:
+                logger.info(f"Processing page: {page.name} (ID: {page.id})")
                 page_datasources = []
                 
                 # Get data sources for this page
-                for page_ds in PageDataSource.objects.filter(page=page).order_by('display_order'):
+                page_ds_objects = PageDataSource.objects.filter(page=page).order_by('display_order')
+                logger.info(f"Found {page_ds_objects.count()} datasources for page {page.name}")
+                
+                for page_ds in page_ds_objects:
+                    logger.info(f"Processing datasource: {page_ds.datasource.name} (ID: {page_ds.datasource.id})")
                     # Only include if this person has attributes from this data source
-                    if AttributeSource.objects.filter(
+                    person_attributes = AttributeSource.objects.filter(
                         person=self.object,
                         datasource=page_ds.datasource,
                         is_current=True
-                    ).exists():
+                    )
+                    
+                    logger.info(f"Found {person_attributes.count()} attributes from datasource {page_ds.datasource.name}")
+                    
+                    if person_attributes.exists():
                         # Get attributes for this page data source
-                        page_attributes = []
+                        highlighted_attributes = []
+                        regular_attributes = []
                         
                         # Get available PageAttribute configurations
                         page_attrs = PageAttribute.objects.filter(
@@ -411,28 +516,25 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
                             is_visible=True
                         ).order_by('display_order')
                         
+                        logger.info(f"Found {page_attrs.count()} page attribute configurations")
+                        
                         # Map attribute names to configurations
                         attr_configs = {attr.attribute_name: attr for attr in page_attrs}
                         
-                        # Get all attributes for this person from this data source
-                        attrs = AttributeSource.objects.filter(
-                            person=self.object,
-                            datasource=page_ds.datasource,
-                            is_current=True
-                        ).select_related('mapping')
-                        
                         # Group by attribute name
                         attr_groups = {}
-                        for attr in attrs:
+                        for attr in person_attributes:
                             if attr.attribute_name not in attr_groups:
                                 attr_groups[attr.attribute_name] = []
                             attr_groups[attr.attribute_name].append(attr)
                         
-                        # Process highlighted attributes first
-                        highlighted_attrs = []
-                        regular_attrs = []
-                        
+                        # Process each attribute
                         for attr_name, attr_list in attr_groups.items():
+                            # Skip attributes not configured for this page
+                            if attr_name not in attr_configs:
+                                logger.info(f"Skipping attribute {attr_name} - not configured for this page")
+                                continue
+                                
                             # Sort by priority if multiple values
                             attr_list.sort(key=lambda x: -x.mapping.priority if x.mapping else 0)
                             
@@ -440,38 +542,38 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
                             attr_display = {
                                 'name': attr_name,
                                 'values': attr_list,
-                                'is_highlighted': False,
-                                'display_name': attr_name.replace('_', ' ').title(),
-                                'display_order': 999
+                                'is_highlighted': attr_configs[attr_name].is_highlighted,
+                                'display_name': attr_configs[attr_name].get_display_name(),
+                                'display_order': attr_configs[attr_name].display_order
                             }
-                            
-                            # Apply page attribute configuration if available
-                            if attr_name in attr_configs:
-                                config = attr_configs[attr_name]
-                                attr_display['is_highlighted'] = config.is_highlighted
-                                attr_display['display_name'] = config.get_display_name()
-                                attr_display['display_order'] = config.display_order
                             
                             # Add to the appropriate list
                             if attr_display['is_highlighted']:
-                                highlighted_attrs.append(attr_display)
+                                highlighted_attributes.append(attr_display)
+                                logger.info(f"Added {attr_name} to highlighted attributes")
                             else:
-                                regular_attrs.append(attr_display)
+                                regular_attributes.append(attr_display)
+                                logger.info(f"Added {attr_name} to regular attributes")
                         
                         # Sort attributes by display order
-                        highlighted_attrs.sort(key=lambda x: x['display_order'])
-                        regular_attrs.sort(key=lambda x: x['display_order'])
+                        highlighted_attributes.sort(key=lambda x: x['display_order'])
+                        regular_attributes.sort(key=lambda x: x['display_order'])
                         
-                        # Add to page data source
-                        page_ds_data = {
-                            'datasource': page_ds.datasource,
-                            'title': page_ds.title_override or page_ds.datasource.name,
-                            'description': page_ds.description_override or page_ds.datasource.description,
-                            'highlighted_attributes': highlighted_attrs,
-                            'regular_attributes': regular_attrs
-                        }
+                        logger.info(f"Datasource has {len(highlighted_attributes)} highlighted and {len(regular_attributes)} regular attributes")
                         
-                        page_datasources.append(page_ds_data)
+                        # Only add this datasource if it has attributes to show
+                        if highlighted_attributes or regular_attributes:
+                            # Add to page data source
+                            page_ds_data = {
+                                'datasource': page_ds.datasource,
+                                'title': page_ds.title_override or page_ds.datasource.name,
+                                'description': page_ds.description_override or page_ds.datasource.description,
+                                'highlighted_attributes': highlighted_attributes,
+                                'regular_attributes': regular_attributes
+                            }
+                            
+                            page_datasources.append(page_ds_data)
+                            logger.info(f"Added datasource {page_ds.datasource.name} to page datasources")
                 
                 # Only add page if it has data sources with data
                 if page_datasources:
@@ -480,15 +582,15 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
                         'datasources': page_datasources
                     }
                     profile_pages.append(page_data)
+                    logger.info(f"Added page {page.name} with {len(page_datasources)} datasources to profile pages")
             
             context['profile_pages'] = profile_pages
-            context['has_pages'] = True
-        else:
-            # Fall back to old organization
-            context['has_pages'] = False
+            logger.info(f"Final result: {len(profile_pages)} pages with data")
+        
+        # Log the actual context keys being passed to the template
+        logger.info(f"Template context keys: {', '.join(context.keys())}")
         
         return context
-
 
 class AttributeHistoryView(LoginRequiredMixin, View):
     """
