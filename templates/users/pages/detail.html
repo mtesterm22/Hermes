@@ -151,7 +151,7 @@
                             <div class="mb-2">
                                 <strong>{{ category }}:</strong>
                                 {% for attr in attrs %}
-                                <form method="post" action="{% url 'users:page_add_attribute' page.slug datasource_id %}" class="inline">
+                                <form method="post" action="{% url 'users:page_add_attribute' page.slug page_ds.id %}" class="inline">
                                     {% csrf_token %}
                                     <input type="hidden" name="attribute_name" value="{{ attr.attribute_name }}">
                                     <button type="submit" class="text-blue-600 hover:text-blue-900 hover:underline ml-1">
@@ -463,8 +463,8 @@
         // Clear existing options
         select.innerHTML = '';
         
-        // Set the form action
-        form.action = `{% url "users:page_add_attribute" page.slug %}${dataSourceId}/`;
+        // Set the form action correctly with both parameters
+        form.action = `/users/pages/{{ page.slug }}/datasource/${dataSourceId}/add-attribute/`;
         
         // Find the data source in the page
         const dataSource = Array.from(document.querySelectorAll('#datasources-list li')).find(li => li.dataset.id == dataSourceId);
