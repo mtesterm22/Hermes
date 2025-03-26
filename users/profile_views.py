@@ -146,6 +146,9 @@ class PersonListView(LoginRequiredMixin, ListView):
         context['total_count'] = Person.objects.count()
         return context
 
+# users/profile_views.py
+# Update PersonDetailView to better handle switching between curated pages and datasource views
+
 class PersonDetailView(LoginRequiredMixin, DetailView):
     """
     Detail view for a single user profile with data source filtering
@@ -279,201 +282,11 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
         
         context['recent_changes'] = recent_changes
         
-        # Get display configurations for all data sources
-        all_configs = {}
-        for datasource_id in datasources:
-            configs = AttributeDisplayConfig.objects.filter(
-                datasource_id=datasource_id,
-                is_visible=True
-            ).order_by('display_order')
-            
-            all_configs[datasource_id] = {
-                config.attribute_name: config for config in configs
-            }
+        # Check if a specific data source has been selected
+        context['has_selected_datasource'] = selected_datasource is not None
         
-        # When a datasource is selected, prepare a filtered view of all attributes
-        if selected_datasource:
-            logger.info(f"Preparing filtered view for datasource: {selected_datasource.name}")
-            
-            # Get all attributes for this person from the selected datasource
-            datasource_attributes = AttributeSource.objects.filter(
-                person=self.object,
-                datasource=selected_datasource,
-                is_current=True
-            ).select_related('datasource', 'mapping')
-            
-            # Group attributes by category if possible
-            categorized_attributes = {}
-            
-            # Try to get display configs for the attributes
-            display_configs = AttributeDisplayConfig.objects.filter(
-                datasource=selected_datasource
-            ).select_related()
-            
-            # Create a mapping of attribute names to their display configs
-            config_map = {config.attribute_name: config for config in display_configs}
-            
-            # Group the attributes by name
-            attr_by_name = {}
-            for attr in datasource_attributes:
-                if attr.attribute_name not in attr_by_name:
-                    attr_by_name[attr.attribute_name] = []
-                attr_by_name[attr.attribute_name].append(attr)
-            
-            # Organize attributes by category
-            for attr_name, attrs in attr_by_name.items():
-                # Get display info from config if available
-                if attr_name in config_map:
-                    config = config_map[attr_name]
-                    category = config.category or "Uncategorized"
-                    display_name = config.get_formatted_display_name()
-                    is_primary = config.is_primary
-                    display_order = config.display_order
-                else:
-                    # Default display info if no config exists
-                    category = "Uncategorized"
-                    display_name = attr_name.replace('_', ' ').title()
-                    is_primary = False
-                    display_order = 999
-                
-                # Sort the attributes by priority
-                sorted_attrs = sorted(attrs, key=lambda x: -x.mapping.priority if x.mapping else 0)
-                
-                # Create attribute display info
-                attr_info = {
-                    'name': attr_name,
-                    'display_name': display_name,
-                    'values': sorted_attrs,
-                    'is_primary': is_primary,
-                    'display_order': display_order
-                }
-                
-                # Add to the category
-                if category not in categorized_attributes:
-                    categorized_attributes[category] = []
-                
-                categorized_attributes[category].append(attr_info)
-            
-            # Sort attributes within each category
-            for category in categorized_attributes:
-                categorized_attributes[category] = sorted(
-                    categorized_attributes[category], 
-                    key=lambda x: (x['display_order'], x['display_name'])
-                )
-            
-            # Sort categories (Identity first, then alphabetically)
-            sorted_categories = {}
-            if 'Identity' in categorized_attributes:
-                sorted_categories['Identity'] = categorized_attributes.pop('Identity')
-            
-            # Add remaining categories in alphabetical order
-            for category in sorted(categorized_attributes.keys()):
-                sorted_categories[category] = categorized_attributes[category]
-            
-            # Add to context
-            context['datasource_view'] = True
-            context['filtered_datasource'] = selected_datasource
-            context['categorized_attributes'] = sorted_categories
-            
-            logger.info(f"Prepared filtered view with {sum(len(attrs) for attrs in sorted_categories.values())} attributes in {len(sorted_categories)} categories")
-        else:
-            context['datasource_view'] = False
-        
-        # Organize attributes based on configurations
-        organized_attributes = {}
-        
-        # First, determine which attributes to show and get their best configuration
-        visible_attributes = {}
-        for attr_name in attributes:
-            # Find the best configuration for this attribute
-            best_config = None
-            for datasource_id, configs in all_configs.items():
-                if attr_name in configs:
-                    # Prefer configurations from the selected data source, or ones marked as primary
-                    if best_config is None or (
-                        (selected_datasource and datasource_id == selected_datasource.id) or 
-                        configs[attr_name].is_primary
-                    ):
-                        best_config = configs[attr_name]
-            
-            # Use default if no config found
-            if best_config is None:
-                visible_attributes[attr_name] = {
-                    'name': attr_name,
-                    'display_name': attr_name.replace('_', ' ').title(),
-                    'category': 'Other',
-                    'order': 999,
-                    'values': attributes[attr_name],
-                    'is_primary': False
-                }
-            else:
-                visible_attributes[attr_name] = {
-                    'name': attr_name,
-                    'display_name': best_config.get_formatted_display_name(),
-                    'category': best_config.category,
-                    'order': best_config.display_order,
-                    'values': attributes[attr_name],
-                    'is_primary': best_config.is_primary
-                }
-        
-        # Group by category
-        for attr_name, attr_info in visible_attributes.items():
-            category = attr_info['category']
-            if category not in organized_attributes:
-                organized_attributes[category] = []
-            
-            organized_attributes[category].append(attr_info)
-        
-        # Sort each category by display order
-        for category, attrs in organized_attributes.items():
-            organized_attributes[category] = sorted(attrs, key=lambda x: x['order'])
-        
-        # Sort categories: always put "Identity" first, then alphabetically
-        sorted_categories = {}
-        if 'Identity' in organized_attributes:
-            sorted_categories['Identity'] = organized_attributes.pop('Identity')
-        
-        # Add remaining categories in alphabetical order
-        for category in sorted(organized_attributes.keys()):
-            sorted_categories[category] = organized_attributes[category]
-        
-        context['organized_attributes'] = sorted_categories
-        
-        # Also identify primary attributes for profile summary
-        primary_attributes = []
-        for attr_name, attr_info in visible_attributes.items():
-            if attr_info['is_primary']:
-                primary_attributes.append(attr_info)
-        
-        # Sort primary attributes by order
-        primary_attributes = sorted(primary_attributes, key=lambda x: x['order'])
-        context['primary_attributes'] = primary_attributes
-
-        primary_by_source = {}
-        for attr_info in primary_attributes:
-            # Get the first value's datasource (which should be the highest priority one)
-            if not attr_info['values']:
-                continue
-                
-            ds = attr_info['values'][0]['datasource']
-            if ds.id not in primary_by_source:
-                primary_by_source[ds.id] = {
-                    'datasource': ds,
-                    'attributes': []
-                }
-            
-            primary_by_source[ds.id]['attributes'].append(attr_info)
-        
-        # Convert to a sorted list (by datasource name)
-        primary_by_source_list = sorted(
-            primary_by_source.values(),
-            key=lambda x: x['datasource'].name
-        )
-        
-        context['primary_by_source'] = primary_by_source_list
-
-        # Get profile pages for organization
-        # Check if profile pages exist
+        # Get profile pages for organization - regardless of datasource selection
+        # We'll always prepare the curated pages, but only show them when no datasource is selected
         has_pages = ProfilePage.objects.filter(is_visible=True).exists()
         logger.info(f"Profile pages exist: {has_pages}")
         context['has_pages'] = has_pages
@@ -587,11 +400,99 @@ class PersonDetailView(LoginRequiredMixin, DetailView):
             context['profile_pages'] = profile_pages
             logger.info(f"Final result: {len(profile_pages)} pages with data")
         
+        # When a datasource is selected, prepare a filtered view of all attributes
+        if selected_datasource:
+            logger.info(f"Preparing filtered view for datasource: {selected_datasource.name}")
+            
+            # Get all attributes for this person from the selected datasource
+            datasource_attributes = AttributeSource.objects.filter(
+                person=self.object,
+                datasource=selected_datasource,
+                is_current=True
+            ).select_related('datasource', 'mapping')
+            
+            # Group attributes by category if possible
+            categorized_attributes = {}
+            
+            # Try to get display configs for the attributes
+            display_configs = AttributeDisplayConfig.objects.filter(
+                datasource=selected_datasource
+            ).select_related()
+            
+            # Create a mapping of attribute names to their display configs
+            config_map = {config.attribute_name: config for config in display_configs}
+            
+            # Group the attributes by name
+            attr_by_name = {}
+            for attr in datasource_attributes:
+                if attr.attribute_name not in attr_by_name:
+                    attr_by_name[attr.attribute_name] = []
+                attr_by_name[attr.attribute_name].append(attr)
+            
+            # Organize attributes by category
+            for attr_name, attrs in attr_by_name.items():
+                # Get display info from config if available
+                if attr_name in config_map:
+                    config = config_map[attr_name]
+                    category = config.category or "Uncategorized"
+                    display_name = config.get_formatted_display_name()
+                    is_primary = config.is_primary
+                    display_order = config.display_order
+                else:
+                    # Default display info if no config exists
+                    category = "Uncategorized"
+                    display_name = attr_name.replace('_', ' ').title()
+                    is_primary = False
+                    display_order = 999
+                
+                # Sort the attributes by priority
+                sorted_attrs = sorted(attrs, key=lambda x: -x.mapping.priority if x.mapping else 0)
+                
+                # Create attribute display info
+                attr_info = {
+                    'name': attr_name,
+                    'display_name': display_name,
+                    'values': sorted_attrs,
+                    'is_primary': is_primary,
+                    'display_order': display_order
+                }
+                
+                # Add to the category
+                if category not in categorized_attributes:
+                    categorized_attributes[category] = []
+                
+                categorized_attributes[category].append(attr_info)
+            
+            # Sort attributes within each category
+            for category in categorized_attributes:
+                categorized_attributes[category] = sorted(
+                    categorized_attributes[category], 
+                    key=lambda x: (x['display_order'], x['display_name'])
+                )
+            
+            # Sort categories (Identity first, then alphabetically)
+            sorted_categories = {}
+            if 'Identity' in categorized_attributes:
+                sorted_categories['Identity'] = categorized_attributes.pop('Identity')
+            
+            # Add remaining categories in alphabetical order
+            for category in sorted(categorized_attributes.keys()):
+                sorted_categories[category] = categorized_attributes[category]
+            
+            # Add to context
+            context['datasource_view'] = True
+            context['filtered_datasource'] = selected_datasource
+            context['categorized_attributes'] = sorted_categories
+            
+            logger.info(f"Prepared filtered view with {sum(len(attrs) for attrs in sorted_categories.values())} attributes in {len(sorted_categories)} categories")
+        else:
+            context['datasource_view'] = False
+        
         # Log the actual context keys being passed to the template
         logger.info(f"Template context keys: {', '.join(context.keys())}")
         
         return context
-
+        
 class AttributeHistoryView(LoginRequiredMixin, View):
     """
     View for attribute change history

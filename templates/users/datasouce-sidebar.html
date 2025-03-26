@@ -1,0 +1,86 @@
+<!-- Data Sources Sidebar - Enhanced to provide better visual feedback -->
+<div class="lg:col-span-1">
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Data Sources</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Select a source to view all its data</p>
+            </div>
+            {% if selected_datasource %}
+            <a href="{% url 'users:person_detail' person.id %}" class="text-sm text-blue-600 hover:text-blue-900">Clear</a>
+            {% endif %}
+        </div>
+        <div class="border-t border-gray-200">
+            {% if datasources %}
+            <ul class="divide-y divide-gray-200">
+                <li class="px-4 py-4 {% if not selected_datasource %}bg-blue-50{% endif %}">
+                    <a href="{% url 'users:person_detail' person.id %}" class="block hover:text-blue-600">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium {% if not selected_datasource %}text-blue-700{% else %}text-gray-900{% endif %}">
+                                    All Data Sources
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {{ datasources|length }} sources
+                                </p>
+                            </div>
+                            <!-- Only show view icon when this option is not active -->
+                            {% if selected_datasource %}
+                            <span class="text-gray-400">
+                                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                    <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </a>
+                </li>
+                {% for item in datasources %}
+                <li class="px-4 py-4 {% if selected_datasource.id == item.datasource.id %}bg-blue-50{% endif %}">
+                    <a href="{% url 'users:person_detail' person.id %}?datasource={{ item.datasource.id }}" class="block hover:text-blue-600">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium {% if selected_datasource.id == item.datasource.id %}text-blue-700{% else %}text-gray-900{% endif %}">
+                                    {{ item.datasource.name }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    {{ item.attribute_count }} attributes
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Last updated: {{ item.last_updated|date:"M d, Y H:i" }}
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <!-- Status Badge -->
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    {% if item.datasource.status == 'active' %}bg-green-100 text-green-800
+                                    {% elif item.datasource.status == 'error' %}bg-red-100 text-red-800
+                                    {% elif item.datasource.status == 'warning' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ item.datasource.get_status_display }}
+                                </span>
+                                
+                                <!-- View icon when not the current selected datasource -->
+                                {% if selected_datasource.id != item.datasource.id %}
+                                <span class="ml-2 text-gray-400">
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-4 py-5 sm:px-6">
+                <p class="text-sm text-gray-500">No data sources contributing to this profile.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
