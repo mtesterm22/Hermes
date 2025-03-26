@@ -1,0 +1,369 @@
+{# templates/datasources/active_directory/connections/form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Hermes - {% if form.instance.pk %}Edit{% else %}Create{% endif %} Active Directory Connection{% endblock %}
+
+{% block page_header %}
+<div class="md:flex md:items-center md:justify-between">
+    <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            {% if form.instance.pk %}Edit{% else %}Create{% endif %} Active Directory Connection
+        </h2>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+        <a href="{% url 'datasources:ad_connections' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Back to Connections
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-8 divide-y divide-gray-200">
+            {% csrf_token %}
+            
+            <div class="space-y-8 divide-y divide-gray-200">
+                <div>
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Basic Information</h3>
+                        <p class="mt-1 text-sm text-gray-500">Provide general information about the Active Directory connection.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Name field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Connection Name
+                            </label>
+                            <div class="mt-1">
+                                {{ form.name }}
+                            </div>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.name.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Description field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Description
+                            </label>
+                            <div class="mt-1">
+                                {{ form.description }}
+                            </div>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.description.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Server Details</h3>
+                        <p class="mt-1 text-sm text-gray-500">Specify how to connect to the Active Directory server.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Server field -->
+                        <div class="sm:col-span-3">
+                            <label for="{{ form.server.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Server Hostname/IP
+                            </label>
+                            <div class="mt-1">
+                                {{ form.server }}
+                            </div>
+                            {% if form.server.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.server.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Port field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.port.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Port
+                            </label>
+                            <div class="mt-1">
+                                {{ form.port }}
+                            </div>
+                            {% if form.port.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.port.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- LDAP Version field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.ldap_version.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                LDAP Version
+                            </label>
+                            <div class="mt-1">
+                                {{ form.ldap_version }}
+                            </div>
+                            {% if form.ldap_version.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.ldap_version.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Base DN field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.base_dn.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Base DN
+                            </label>
+                            <div class="mt-1">
+                                {{ form.base_dn }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                The base Distinguished Name for searches (e.g., dc=example,dc=com)
+                            </p>
+                            {% if form.base_dn.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.base_dn.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Search Scope field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.search_scope.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Search Scope
+                            </label>
+                            <div class="mt-1">
+                                {{ form.search_scope }}
+                            </div>
+                            {% if form.search_scope.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.search_scope.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- SSL Options -->
+                        <div class="sm:col-span-3">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.use_ssl }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.use_ssl.id_for_label }}" class="font-medium text-gray-700">Use SSL</label>
+                                    <p class="text-gray-500">Connect using LDAPS (LDAP over SSL)</p>
+                                </div>
+                            </div>
+                            {% if form.use_ssl.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.use_ssl.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- StartTLS Option -->
+                        <div class="sm:col-span-3">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    {{ form.use_start_tls }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="{{ form.use_start_tls.id_for_label }}" class="font-medium text-gray-700">Use StartTLS</label>
+                                    <p class="text-gray-500">Upgrade connection to TLS after connecting</p>
+                                </div>
+                            </div>
+                            {% if form.use_start_tls.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.use_start_tls.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Bind DN field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.bind_dn.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Bind DN
+                            </label>
+                            <div class="mt-1">
+                                {{ form.bind_dn }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Username for binding to the LDAP server (e.g., cn=admin,dc=example,dc=com)
+                            </p>
+                            {% if form.bind_dn.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.bind_dn.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Password field -->
+                        <div class="sm:col-span-4">
+                            <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Password
+                            </label>
+                            <div class="mt-1">
+                                {{ form.password }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                {% if form.instance.pk %}
+                                Leave blank to keep the current password.
+                                {% else %}
+                                Password for binding to the LDAP server.
+                                {% endif %}
+                            </p>
+                            {% if form.password.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.password.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Connection Timeout field -->
+                        <div class="sm:col-span-2">
+                            <label for="{{ form.connect_timeout.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Connection Timeout (s)
+                            </label>
+                            <div class="mt-1">
+                                {{ form.connect_timeout }}
+                            </div>
+                            {% if form.connect_timeout.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.connect_timeout.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Search Filters</h3>
+                        <p class="mt-1 text-sm text-gray-500">Default search filters for users and groups.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- User Search Filter field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.user_search_filter.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                User Search Filter
+                            </label>
+                            <div class="mt-1">
+                                {{ form.user_search_filter }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                LDAP filter for finding users (e.g., (objectClass=user))
+                            </p>
+                            {% if form.user_search_filter.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.user_search_filter.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Group Search Filter field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.group_search_filter.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Group Search Filter
+                            </label>
+                            <div class="mt-1">
+                                {{ form.group_search_filter }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                LDAP filter for finding groups (e.g., (objectClass=group))
+                            </p>
+                            {% if form.group_search_filter.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.group_search_filter.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pt-8">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Test Options</h3>
+                        <p class="mt-1 text-sm text-gray-500">Options for testing the connection.</p>
+                    </div>
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                        <!-- Test Filter field -->
+                        <div class="sm:col-span-6">
+                            <label for="{{ form.test_filter.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                Test Filter
+                            </label>
+                            <div class="mt-1">
+                                {{ form.test_filter }}
+                            </div>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Optional LDAP filter to use when testing the connection
+                            </p>
+                            {% if form.test_filter.errors %}
+                            <p class="mt-2 text-sm text-red-600">
+                                {{ form.test_filter.errors|join:", " }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="pt-5">
+                <div class="flex justify-end">
+                    <a href="{% url 'datasources:ad_connections' %}" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" name="test_connection" class="ml-3 inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if form.instance.pk %}Save & Test Connection{% else %}Create & Test Connection{% endif %}
+                    </button>
+                    <button type="submit" class="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if form.instance.pk %}Save{% else %}Create{% endif %}
+                    </button>
+                </div>
+            </div>
+            
+            {% if return_to_datasource %}
+            <input type="hidden" name="return_to" value="datasource">
+            <input type="hidden" name="datasource_id" value="{{ datasource_id }}">
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update port when connection type changes
+        const sslCheckbox = document.getElementById('{{ form.use_ssl.id_for_label }}');
+        const portInput = document.getElementById('{{ form.port.id_for_label }}');
+        
+        // Define default ports
+        const DEFAULT_PORT = 389;
+        const SSL_PORT = 636;
+        
+        function updatePort() {
+            // Only update if we're enabling SSL and port is the default non-SSL port
+            if (sslCheckbox.checked && portInput.value == DEFAULT_PORT) {
+                portInput.value = SSL_PORT;
+            }
+            // And vice versa
+            else if (!sslCheckbox.checked && portInput.value == SSL_PORT) {
+                portInput.value = DEFAULT_PORT;
+            }
+        }
+        
+        if (sslCheckbox && portInput) {
+            sslCheckbox.addEventListener('change', updatePort);
+        }
+    });
+</script>
+{% endblock %}

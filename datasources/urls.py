@@ -5,6 +5,7 @@ from . import csv_views
 from . import profile_views 
 from . import database_views
 from . import connection_views
+from . import active_directory_views
 
 app_name = 'datasources'
 
@@ -76,4 +77,20 @@ urlpatterns = [
     path('connections/<int:pk>/tables/', connection_views.ConnectionTablesView.as_view(), name='connection_tables'),
     path('oracle/templates/', database_views.OracleHelperView.as_view(), name='oracle_templates'),
     path('connections/<int:pk>/test-oracle/', connection_views.TestOracleConnectionView.as_view(), name='test_oracle_connection'),
+
+    # Active Directory Connection Management
+    path('ad-connections/', active_directory_views.ADConnectionListView.as_view(), name='ad_connections'),
+    path('ad-connections/create/', active_directory_views.ADConnectionCreateView.as_view(), name='ad_connection_create'),
+    path('ad-connections/<int:pk>/', active_directory_views.ADConnectionDetailView.as_view(), name='ad_connection_detail'),
+    path('ad-connections/<int:pk>/update/', active_directory_views.ADConnectionUpdateView.as_view(), name='ad_connection_update'),
+    path('ad-connections/<int:pk>/delete/', active_directory_views.ADConnectionDeleteView.as_view(), name='ad_connection_delete'),
+    path('ad-connections/<int:pk>/test/', active_directory_views.ADConnectionTestView.as_view(), name='ad_connection_test'),
+
+    # Active Directory Data Source Management
+    path('active-directory/create/', active_directory_views.ADDataSourceCreateView.as_view(), name='ad_create'),
+    path('active-directory/<int:pk>/', active_directory_views.ADDataSourceDetailView.as_view(), name='ad_detail'),
+    path('active-directory/<int:pk>/update/', active_directory_views.ADDataSourceUpdateView.as_view(), name='ad_update'),
+    path('active-directory/<int:pk>/test-connection/', active_directory_views.ADTestConnectionView.as_view(), name='ad_test_connection'),
+    path('active-directory/<int:pk>/sync/', active_directory_views.ADDataSourceSyncView.as_view(), name='ad_sync'),
+    path('active-directory/<int:pk>/detect-fields/', active_directory_views.ADDetectFieldsView.as_view(), name='ad_detect_fields'),
 ]
