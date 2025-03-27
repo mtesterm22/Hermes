@@ -218,8 +218,8 @@ class CSVDataSourceSyncView(LoginRequiredMixin, View):
             )
 
             # Queue the sync task
-            sync_datasource.delay(datasource.id, request.user.id)
-            messages.success(request, _('Data synchronization has been queued and will start shortly.'))
+            # sync_datasource.delay(datasource.id, request.user.id)
+            # messages.success(request, _('Data synchronization has been queued and will start shortly.'))
             
             # Get the CSV connector
             connector = CSVConnector(datasource)
