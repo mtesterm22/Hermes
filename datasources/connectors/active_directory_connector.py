@@ -295,11 +295,18 @@ class ADConnector:
             raise ValueError("DataSource instance required for sync_data")
         
         try:
+            # Log important information for debugging
+            logger.info(f"Starting sync for AD data source: {self.datasource.name}")
+            logger.info(f"Using base DN: {self.config.get('base_dn', 'Not set')}")
+            logger.info(f"Using user filter: {self.config.get('user_filter', 'Not set')}")
+            
             conn = self._get_connection()
             
             # Try to bind
             if not conn.bind():
-                raise Exception(f"Failed to bind: {conn.result}")
+                error_msg = f"Failed to bind: {conn.result}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
             
             # Get settings from config
             base_dn = self.config.get('base_dn', '')
@@ -326,13 +333,25 @@ class ADConnector:
                 'subtree': SUBTREE
             }.get(self.config.get('search_scope', 'subtree'), SUBTREE)
             
-            # Set up profile integration service
+            # Set up profile integration service with improved error handling
+            profile_service = None
             try:
                 from users.services.profile_integration import ProfileIntegrationService
+                logger.info("Attempting to initialize profile integration service")
                 profile_service = ProfileIntegrationService(self.datasource, datasource_sync)
+                logger.info("Profile integration service initialized successfully")
+                
+                # Check for existing field mappings
+                from users.profile_integration import ProfileFieldMapping
+                mapping_count = ProfileFieldMapping.objects.filter(datasource=self.datasource).count()
+                logger.info(f"Found {mapping_count} profile field mappings for this data source")
             except ImportError:
-                logger.warning("Profile integration service not available")
-                profile_service = None
+                logger.warning("Profile integration service not available - module not found")
+            except Exception as profile_error:
+                logger.error(f"Error initializing profile service: {str(profile_error)}")
+                # Continue without profile service - mark as warning
+                datasource_sync.error_message = f"Profile integration error: {str(profile_error)}"
+                datasource_sync.save(update_fields=['error_message'])
             
             # Search for users
             total_users = 0
@@ -344,14 +363,20 @@ class ADConnector:
             synced_object_ids = []
             
             # Search for users with paged results to handle large directories
-            entry_generator = conn.extend.standard.paged_search(
-                search_base=base_dn,
-                search_filter=user_filter,
-                search_scope=search_scope,
-                attributes=user_attributes,
-                paged_size=page_size,
-                generator=True
-            )
+            try:
+                logger.info(f"Executing LDAP search with filter: {user_filter}")
+                entry_generator = conn.extend.standard.paged_search(
+                    search_base=base_dn,
+                    search_filter=user_filter,
+                    search_scope=search_scope,
+                    attributes=user_attributes,
+                    paged_size=page_size,
+                    generator=True
+                )
+                logger.info("LDAP search initiated successfully")
+            except Exception as search_error:
+                logger.error(f"Error executing LDAP search: {str(search_error)}")
+                raise Exception(f"LDAP search failed: {str(search_error)}")
             
             # Process each user
             for entry in entry_generator:
@@ -403,48 +428,66 @@ class ADConnector:
                                 normalized_data['groupNames'].append(group_name)
                         
                         # If nested groups are enabled, we could expand them here
-                        # This would require additional LDAP queries
+                        if include_nested_groups and group_dns:
+                            logger.debug(f"Processing nested groups for user with ID {object_id}")
+                            # This would require additional LDAP queries to find parent groups
+                            # Implementation would depend on your specific needs
                     
-                    # Process the record through profile integration
+                    # Process the record through profile integration if available
                     if profile_service:
-                        person, created, changes = profile_service.process_record(normalized_data, str(object_id))
-                        
-                        if created:
-                            created_users += 1
-                        elif changes > 0:
-                            updated_users += 1
-                    
-                    total_users += 1
+                        try:
+                            logger.debug(f"Processing user with ID {object_id} through profile integration")
+                            person, created, changes = profile_service.process_record(normalized_data, str(object_id))
+                            
+                            if created:
+                                created_users += 1
+                                logger.debug(f"Created new profile for user with ID {object_id}")
+                            elif changes > 0:
+                                updated_users += 1
+                                logger.debug(f"Updated profile for user with ID {object_id} with {changes} changes")
+                        except Exception as profile_error:
+                            logger.error(f"Error processing user with ID {object_id} through profile integration: {str(profile_error)}")
+                            # Continue with next user
+                    else:
+                        # Just count the record if no profile integration
+                        logger.debug(f"Counted user with ID {object_id} (no profile integration)")
+                        total_users += 1
                     
                     # Update sync status periodically
-                    if total_users % 100 == 0:
+                    if (created_users + updated_users) % 100 == 0:
                         self.sync.users_processed = total_users
                         self.sync.users_created = created_users
                         self.sync.users_updated = updated_users
                         self.sync.save(update_fields=['users_processed', 'users_created', 'users_updated'])
+                        logger.info(f"Processed {total_users} users so far ({created_users} created, {updated_users} updated)")
                 
                 except Exception as e:
                     logger.error(f"Error processing user entry: {str(e)}")
-                    # Continue with next entry
+                    # Continue with next entry to make sync as robust as possible
             
             # Handle deleted objects if requested
             if sync_deleted and profile_service and synced_object_ids:
                 try:
+                    logger.info(f"Removing attributes from profiles not in current dataset ({len(synced_object_ids)} objects processed)")
                     deleted_count = profile_service.remove_missing_attributes(synced_object_ids)
                     deleted_users = deleted_count
                     logger.info(f"Removed {deleted_count} attributes from profiles not in current dataset")
                 except Exception as cleanup_error:
                     logger.error(f"Error cleaning up missing attributes: {str(cleanup_error)}")
             
+            # Get final count if we haven't been tracking through profile service
+            if profile_service is None:
+                total_users = created_users + updated_users
+            
             # Update sync stats
-            self.sync.users_processed = total_users
+            self.sync.users_processed = total_users or created_users + updated_users
             self.sync.users_created = created_users
             self.sync.users_updated = updated_users
             self.sync.users_deleted = deleted_users
             self.sync.save()
             
             # Update main sync record
-            datasource_sync.records_processed = total_users
+            datasource_sync.records_processed = total_users or created_users + updated_users + deleted_users
             datasource_sync.records_created = created_users
             datasource_sync.records_updated = updated_users
             datasource_sync.records_deleted = deleted_users
@@ -456,11 +499,15 @@ class ADConnector:
             self.datasource.sync_count += 1
             self.datasource.save(update_fields=['status', 'last_sync', 'sync_count'])
             
+            logger.info(f"Sync completed successfully: {created_users} created, {updated_users} updated, {deleted_users} deleted")
             return datasource_sync
             
         except Exception as e:
+            import traceback
             error_message = f"Error syncing Active Directory data: {str(e)}"
+            stack_trace = traceback.format_exc()
             logger.error(error_message)
+            logger.error(f"Stack trace: {stack_trace}")
             
             if datasource_sync:
                 datasource_sync.complete(status='error', error_message=error_message)
@@ -473,8 +520,13 @@ class ADConnector:
         finally:
             # Ensure connection is closed
             if self._connection and self._connection.bound:
-                self._connection.unbind()
-                self._connection = None
+                try:
+                    self._connection.unbind()
+                    logger.debug("LDAP connection closed successfully")
+                except Exception as conn_error:
+                    logger.warning(f"Error closing LDAP connection: {str(conn_error)}")
+                finally:
+                    self._connection = None
     
     def _normalize_ldap_data(self, data):
         """
