@@ -22,26 +22,20 @@
 {% block content %}
 <div class="bg-white shadow overflow-hidden sm:rounded-lg">
     {% if datasources %}
-    <div class="overflow-x-auto">
+    <div>
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                         Name
                     </th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                         Type
                     </th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
                         Status
                     </th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Last Sync
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Created By
-                    </th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                     </th>
                 </tr>
@@ -49,34 +43,34 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for datasource in datasources %}
 <tr>
-    <td class="px-6 py-4 whitespace-nowrap">
+    <td class="px-6 py-4">
         <div class="text-sm font-medium text-gray-900">
             {% if datasource.type == 'csv' %}
-        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
-            {{ datasource.name }}
-        </a>
-        {% elif datasource.type == 'database' %}
-        <a href="{% url 'datasources:database_detail' datasource.id %}" class="hover:text-blue-600">
-            {{ datasource.name }}
-        </a>
-        {% elif datasource.type == 'active_directory' %}
-        <a href="{% url 'datasources:ad_detail' datasource.id %}" class="hover:text-blue-600">
-            {{ datasource.name }}
-        </a>
-        {% else %}
-        <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
-            {{ datasource.name }}
-        </a>
-        {% endif %}
+            <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% elif datasource.type == 'database' %}
+            <a href="{% url 'datasources:database_detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% elif datasource.type == 'active_directory' %}
+            <a href="{% url 'datasources:ad_detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% else %}
+            <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
+                {{ datasource.name }}
+            </a>
+            {% endif %}
         </div>
         <div class="text-sm text-gray-500">
-            {{ datasource.description|truncatechars:100 }}
+            {{ datasource.description|truncatechars:60 }}
         </div>
     </td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+    <td class="px-6 py-4 text-sm text-gray-500">
         {{ datasource.get_type_display }}
     </td>
-    <td class="px-6 py-4 whitespace-nowrap">
+    <td class="px-6 py-4">
         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
             {% if datasource.status == 'active' %}bg-green-100 text-green-800
             {% elif datasource.status == 'error' %}bg-red-100 text-red-800
@@ -85,13 +79,7 @@
             {{ datasource.get_status_display }}
         </span>
     </td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        {{ datasource.last_sync|default:"Never" }}
-    </td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        {{ datasource.created_by.username|default:"System" }}
-    </td>
-    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <td class="px-6 py-4 text-center text-sm font-medium">
         {% if datasource.type == 'csv' %}
         <a href="{% url 'datasources:csv_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
         <a href="{% url 'datasources:csv_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
