@@ -52,18 +52,22 @@
     <td class="px-6 py-4 whitespace-nowrap">
         <div class="text-sm font-medium text-gray-900">
             {% if datasource.type == 'csv' %}
-            <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
-                {{ datasource.name }}
-            </a>
-            {% elif datasource.type == 'database' %}
-            <a href="{% url 'datasources:database_detail' datasource.id %}" class="hover:text-blue-600">
-                {{ datasource.name }}
-            </a>
-            {% else %}
-            <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
-                {{ datasource.name }}
-            </a>
-            {% endif %}
+        <a href="{% url 'datasources:csv_detail' datasource.id %}" class="hover:text-blue-600">
+            {{ datasource.name }}
+        </a>
+        {% elif datasource.type == 'database' %}
+        <a href="{% url 'datasources:database_detail' datasource.id %}" class="hover:text-blue-600">
+            {{ datasource.name }}
+        </a>
+        {% elif datasource.type == 'active_directory' %}
+        <a href="{% url 'datasources:ad_detail' datasource.id %}" class="hover:text-blue-600">
+            {{ datasource.name }}
+        </a>
+        {% else %}
+        <a href="{% url 'datasources:detail' datasource.id %}" class="hover:text-blue-600">
+            {{ datasource.name }}
+        </a>
+        {% endif %}
         </div>
         <div class="text-sm text-gray-500">
             {{ datasource.description|truncatechars:100 }}
@@ -94,6 +98,9 @@
         {% elif datasource.type == 'database' %}
         <a href="{% url 'datasources:database_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
         <a href="{% url 'datasources:database_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
+        {% elif datasource.type == 'active_directory' %}
+        <a href="{% url 'datasources:ad_detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+        <a href="{% url 'datasources:ad_update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>
         {% else %}
         <a href="{% url 'datasources:detail' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
         <a href="{% url 'datasources:update' datasource.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Edit</a>

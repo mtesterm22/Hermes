@@ -85,6 +85,7 @@ urlpatterns = [
     path('ad-connections/<int:pk>/update/', active_directory_views.ADConnectionUpdateView.as_view(), name='ad_connection_update'),
     path('ad-connections/<int:pk>/delete/', active_directory_views.ADConnectionDeleteView.as_view(), name='ad_connection_delete'),
     path('ad-connections/<int:pk>/test/', active_directory_views.ADConnectionTestView.as_view(), name='ad_connection_test'),
+    path('active-directory/<int:pk>/debug/', active_directory_views.ADDebugView.as_view(), name='ad_debug'),
 
     # Active Directory Data Source Management
     path('active-directory/create/', active_directory_views.ADDataSourceCreateView.as_view(), name='ad_create'),

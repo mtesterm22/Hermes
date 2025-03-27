@@ -268,12 +268,13 @@ class ADConnector:
         # Default to text
         return 'text'
     
-    def sync_data(self, triggered_by=None):
+    def sync_data(self, triggered_by=None, skip_profile_integration=False):
         """
         Synchronize data from Active Directory.
         
         Args:
             triggered_by: User who triggered the sync
+            skip_profile_integration: Boolean to skip profile integration (for debugging)
             
         Returns:
             Sync record
@@ -335,23 +336,27 @@ class ADConnector:
             
             # Set up profile integration service with improved error handling
             profile_service = None
-            try:
-                from users.services.profile_integration import ProfileIntegrationService
-                logger.info("Attempting to initialize profile integration service")
-                profile_service = ProfileIntegrationService(self.datasource, datasource_sync)
-                logger.info("Profile integration service initialized successfully")
-                
-                # Check for existing field mappings
-                from users.profile_integration import ProfileFieldMapping
-                mapping_count = ProfileFieldMapping.objects.filter(datasource=self.datasource).count()
-                logger.info(f"Found {mapping_count} profile field mappings for this data source")
-            except ImportError:
-                logger.warning("Profile integration service not available - module not found")
-            except Exception as profile_error:
-                logger.error(f"Error initializing profile service: {str(profile_error)}")
-                # Continue without profile service - mark as warning
-                datasource_sync.error_message = f"Profile integration error: {str(profile_error)}"
-                datasource_sync.save(update_fields=['error_message'])
+            if not skip_profile_integration:
+                try:
+                    from users.services.profile_integration import ProfileIntegrationService
+                    logger.info("Attempting to initialize profile integration service")
+                    profile_service = ProfileIntegrationService(self.datasource, datasource_sync)
+                    logger.info("Profile integration service initialized successfully")
+                    
+                    # Check for existing field mappings
+                    from users.profile_integration import ProfileFieldMapping
+                    mapping_count = ProfileFieldMapping.objects.filter(datasource=self.datasource).count()
+                    logger.info(f"Found {mapping_count} profile field mappings for this data source")
+                except ImportError as import_error:
+                    logger.warning(f"Profile integration service not available - module not found: {str(import_error)}")
+                    # Set warning on sync record
+                    datasource_sync.error_message = f"Profile integration module not found: {str(import_error)}"
+                    datasource_sync.save(update_fields=['error_message'])
+                except Exception as profile_error:
+                    logger.error(f"Error initializing profile service: {str(profile_error)}")
+                    # Continue without profile service - mark as warning
+                    datasource_sync.error_message = f"Profile integration error: {str(profile_error)}"
+                    datasource_sync.save(update_fields=['error_message'])
             
             # Search for users
             total_users = 0

@@ -367,128 +367,45 @@ class ADDataSourceSyncView(LoginRequiredMixin, View):
             return redirect('datasources:ad_detail', pk=pk)
         
         try:
-            # Log the sync attempt
+            # Direct sync approach - simpler and more reliable
             logger.info(f"Starting Active Directory sync for datasource {datasource.id}: {datasource.name}")
             
-            # Check AD settings
-            try:
-                ad_settings = datasource.active_directory_settings
-                logger.info(f"Found AD settings with connection {ad_settings.connection.name}")
-            except Exception as settings_error:
-                logger.error(f"Error retrieving AD settings: {str(settings_error)}")
-                messages.error(request, _('Error retrieving Active Directory settings: {}').format(str(settings_error)))
+            # Create connector
+            connector = ADConnector(datasource=datasource)
+            
+            # Test the connection before proceeding
+            success, message = connector.test_connection()
+            if not success:
+                messages.error(request, _('Connection test failed: {}').format(message))
                 return redirect('datasources:ad_detail', pk=pk)
             
-            # Check for profile field mappings
-            try:
-                from users.profile_integration import ProfileFieldMapping
-                mappings = ProfileFieldMapping.objects.filter(datasource=datasource)
-                mapping_count = mappings.count()
-                logger.info(f"Found {mapping_count} profile field mappings for this datasource")
-                
-                if mapping_count > 0:
-                    # Log a sample of mappings for debugging
-                    sample_mappings = mappings[:3]
-                    for mapping in sample_mappings:
-                        logger.info(f"Mapping: {mapping.source_field.name} -> {mapping.profile_attribute}")
-            except Exception as mapping_error:
-                logger.warning(f"Error checking profile mappings: {str(mapping_error)}")
-                # Continue without mapping info
+            # Execute the sync with proper error handling
+            sync = connector.sync_data(triggered_by=request.user)
             
-            # Create a sync record first
-            sync_record = DataSourceSync.objects.create(
-                datasource=datasource,
-                triggered_by=request.user,
-                status='running'
-            )
-            logger.info(f"Created sync record with ID {sync_record.id}")
-            
-            # Get connection info for validation
-            try:
-                connection_info = ad_settings.get_settings()
-                logger.info(f"Retrieved connection settings for {connection_info.get('server', 'unknown server')}")
-            except Exception as conn_error:
-                logger.error(f"Error getting connection settings: {str(conn_error)}")
-                sync_record.complete(status='error', error_message=f"Connection settings error: {str(conn_error)}")
-                messages.error(request, _('Error retrieving connection settings: {}').format(str(conn_error)))
-                return redirect('datasources:ad_detail', pk=pk)
-            
-            # Create connector with the datasource instance
-            try:
-                connector = ADConnector(datasource=datasource)
-                logger.info("ADConnector initialized successfully")
-            except Exception as connector_error:
-                logger.error(f"Error creating AD connector: {str(connector_error)}")
-                sync_record.complete(status='error', error_message=f"Connector initialization error: {str(connector_error)}")
-                messages.error(request, _('Error initializing connector: {}').format(str(connector_error)))
-                return redirect('datasources:ad_detail', pk=pk)
-            
-            # Test the connection before proceeding with sync
-            try:
-                logger.info("Testing connection before sync")
-                success, message = connector.test_connection()
-                if not success:
-                    logger.error(f"Connection test failed: {message}")
-                    sync_record.complete(status='error', error_message=f"Connection test failed: {message}")
-                    messages.error(request, _('Connection test failed before sync: {}').format(message))
-                    return redirect('datasources:ad_detail', pk=pk)
-                logger.info(f"Connection test successful: {message}")
-            except Exception as test_error:
-                logger.error(f"Error testing connection: {str(test_error)}")
-                sync_record.complete(status='error', error_message=f"Connection test error: {str(test_error)}")
-                messages.error(request, _('Error testing connection: {}').format(str(test_error)))
-                return redirect('datasources:ad_detail', pk=pk)
-            
-            # Execute the sync with detailed error handling
-            try:
-                logger.info("Starting sync_data method")
-                sync = connector.sync_data(triggered_by=request.user)
-                logger.info(f"Sync completed with status: {sync.status}")
-                
-                if sync.status == 'success':
-                    messages.success(request, _(
-                        'Data sync completed successfully. {processed} users processed, {created} created, {updated} updated, {deleted} deleted.'
-                    ).format(
-                        processed=sync.records_processed,
-                        created=sync.records_created,
-                        updated=sync.records_updated,
-                        deleted=sync.records_deleted
-                    ))
-                elif sync.status == 'warning':
-                    messages.warning(request, _(
-                        'Data sync completed with warnings. {processed} users processed. {error}'
-                    ).format(
-                        processed=sync.records_processed,
-                        error=sync.error_message
-                    ))
-                else:
-                    messages.error(request, _('Data sync failed: {}').format(sync.error_message))
-            except Exception as sync_error:
-                import traceback
-                stack_trace = traceback.format_exc()
-                error_msg = str(sync_error)
-                logger.error(f"Error during sync_data: {error_msg}")
-                logger.error(f"Stack trace: {stack_trace}")
-                
-                # Update the sync record
-                sync_record.complete(status='error', error_message=error_msg)
-                
-                # Provide a user-friendly error message
-                if "ImportError" in error_msg or "ModuleNotFoundError" in error_msg:
-                    messages.error(request, _('Error syncing data: Profile integration module not available. Contact administrator.'))
-                elif "OperationalError" in error_msg or "DatabaseError" in error_msg:
-                    messages.error(request, _('Error syncing data: Database error occurred. Contact administrator.'))
-                elif "LDAPException" in error_msg:
-                    messages.error(request, _('Error syncing data: LDAP connection error. Please check connection settings.'))
-                else:
-                    messages.error(request, _('Error syncing data: {}').format(error_msg))
+            if sync.status == 'success':
+                messages.success(request, _(
+                    'Data sync completed successfully. {processed} users processed, {created} created, {updated} updated, {deleted} deleted.'
+                ).format(
+                    processed=sync.records_processed,
+                    created=sync.records_created,
+                    updated=sync.records_updated,
+                    deleted=sync.records_deleted
+                ))
+            elif sync.status == 'warning':
+                messages.warning(request, _(
+                    'Data sync completed with warnings. {processed} users processed. {error}'
+                ).format(
+                    processed=sync.records_processed,
+                    error=sync.error_message
+                ))
+            else:
+                messages.error(request, _('Data sync failed: {}').format(sync.error_message))
             
         except Exception as e:
             import traceback
-            stack_trace = traceback.format_exc()
             error_msg = str(e)
-            logger.error(f"Unhandled exception in ADDataSourceSyncView: {error_msg}")
-            logger.error(f"Stack trace: {stack_trace}")
+            logger.error(f"Error during sync: {error_msg}")
+            logger.error(traceback.format_exc())
             messages.error(request, _('Error syncing data: {}').format(error_msg))
         
         # Redirect back to detail page
@@ -532,4 +449,57 @@ class ADDetectFieldsView(LoginRequiredMixin, View):
             messages.error(request, _('Error detecting fields: {}').format(str(e)))
         
         # Redirect back to detail page
+        return redirect('datasources:ad_detail', pk=pk)
+
+class ADDebugView(LoginRequiredMixin, View):
+    """
+    View for debugging AD connection and sync issues
+    """
+    def get(self, request, pk):
+        datasource = get_object_or_404(DataSource, pk=pk)
+        
+        if datasource.type != 'active_directory':
+            messages.error(request, _('This is not an Active Directory data source.'))
+            return redirect('datasources:index')
+        
+        # Get debug info
+        try:
+            from ldap3 import __version__ as ldap3_version
+            
+            ad_settings = datasource.active_directory_settings
+            connection = ad_settings.connection
+            
+            debug_info = {
+                "datasource_name": datasource.name,
+                "ldap3_version": ldap3_version,
+                "connection_info": {
+                    "server": connection.server,
+                    "port": connection.port,
+                    "bind_dn": connection.bind_dn,
+                    "base_dn": connection.base_dn,
+                    "use_ssl": connection.use_ssl,
+                    "use_start_tls": connection.use_start_tls
+                },
+                "query_info": {
+                    "user_filter": ad_settings.user_filter,
+                    "include_groups": ad_settings.include_groups
+                }
+            }
+            
+            # Check if password is available
+            connection_info = connection.get_connection_info()
+            has_password = 'password' in connection_info and bool(connection_info['password'])
+            debug_info["connection_info"]["has_password"] = has_password
+            
+            # Store debug info in session
+            request.session['ad_debug_info'] = debug_info
+            messages.info(request, _('Debug information collected. Check with administrator.'))
+            
+            # Also write to log
+            logger.info(f"AD debug info for {datasource.name}: {debug_info}")
+            
+        except Exception as e:
+            messages.error(request, _('Error collecting debug info: {}').format(str(e)))
+            logger.error(f"Error collecting AD debug info: {str(e)}")
+        
         return redirect('datasources:ad_detail', pk=pk)
